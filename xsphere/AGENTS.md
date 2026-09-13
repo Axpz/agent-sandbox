@@ -6,7 +6,7 @@ component. Follow the repository-root AGENTS.md as well as these constraints.
 - Product: `xsphere`. Control-plane component: `sandbox-api`. Keep existing
   API paths, SDK fields, environment variable names, labels used for ownership,
   Service names, and the `sandbox-edge` / `sandbox-router` routing contract.
-- Use `make -C platform check` for offline verification. Go controller and Router
+- Use `make -C xsphere check` for offline verification. Go controller and Router
   source remains in the repository root; do not copy it here or replace its tooling.
 - Deployment is opt-in. Do not change a cluster, replace node runtimes, create a
   VM, or rotate/delete PVCs as part of a documentation or source import task.

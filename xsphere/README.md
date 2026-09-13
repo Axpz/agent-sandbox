@@ -30,10 +30,10 @@ Requirements: Bun 1.3.5, Helm 3.16.4 and Python 3.11+.
 Docker is optional for the image target. Run from the repository root:
 
 ```sh
-make -C platform install
-make -C platform check
-make -C platform render
-make -C platform image
+make -C xsphere install
+make -C xsphere check
+make -C xsphere render
+make -C xsphere image
 ```
 
 `check` runs lint, TypeScript checking, offline contract/configuration/chart tests,
@@ -45,12 +45,12 @@ permissions of `/dev/null`, used as its offline kubeconfig; no credential file i
 
 The default dev profile uses locally built images, keeps all Services ClusterIP,
 and leaves existing Templates/WarmPools untouched. See [deployment](docs/deployment.md)
-before installing anything. Put environment-specific values under `platform/local/`
+before installing anything. Put environment-specific values under `xsphere/local/`
 (gitignored), not in the shared defaults.
 
 `controller-build`, `router-build`, `controller-image`, `router-image` and `images`
 reuse existing source and Dockerfiles through the same Make entry. The root image
-scanner skips `platform/`; the root Docker context excludes it so local configuration,
+scanner skips `xsphere/`; the root Docker context excludes it so local configuration,
 dependencies and build outputs do not enter upstream builds. `smoke-images`
 tests already-available API and Nginx images without cluster access or public ports.
 

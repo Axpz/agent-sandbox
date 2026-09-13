@@ -8,14 +8,17 @@ This is a historical record of the initial product baseline, published as
 The subsequent simplification removed the local gVisor CLI, its tests and patch
 copy. Use the [runtime reference](../runtime/) for current ownership and versions;
 the runtime commands and 62-test count below describe that earlier baseline.
+Directory references below use the current `xsphere/` name for readability;
+results remain historical. The linked commit preserves the original paths and
+commands. See the [product README](../README.md) for current verification steps.
 
-Scope: the new `platform/` integration on `product/xsphere`. No live Kubernetes,
+Scope: the product integration, now under `xsphere/`, on `product/xsphere`. No live Kubernetes,
 VM, node runtime, existing controller or original API repository was changed.
 
 | Check | Result |
 | --- | --- |
-| `make -C platform install` | Frozen Bun lock accepted |
-| `make -C platform check` | Passed lint, Helm lint, TypeScript check, 19 tests and Bun build |
+| `make -C xsphere install` | Frozen Bun lock accepted |
+| `make -C xsphere check` | Passed lint, Helm lint, TypeScript check, 19 tests and Bun build |
 | Repeat check after build | Passed; generated `dist/` excluded from lint |
 | API Docker build | Passed using the production dependency install |
 | ARM64 API image smoke | Passed HTTP `/health` and `/openapi.json` on loopback inside a `--network none` container |
@@ -47,12 +50,12 @@ checks. Node activation is explicitly opt-in, not part of local verification.
 
 | Check | Result |
 | --- | --- |
-| `make -C platform check` | Passed: 20 API/config/chart tests, 21 runtime tests, 21 image-tool tests; lint, typecheck and API build passed |
+| `make -C xsphere check` | Passed: 20 API/config/chart tests, 21 runtime tests, 21 image-tool tests; lint, typecheck and API build passed |
 | Controller chart through product entry | Rendered with an overridden namespace and extensions enabled |
 | `prepare` and `verify-source` | Applied the actual archived patch to the exact gVisor commit in a fresh checkout; verified no extra source changes |
 | Public upstream tag | `release-20260817.0` peels to the locked `50e1502a95d36ad2faf2c7ef33b8bf21fe975293` |
 | `fetch-runsc --arch arm64` | Downloaded official binary, SHA256 and ELF architecture matched; isolated Linux container reported `release-20260817.0` |
-| Controller and Router builds | Both built as static Linux/ARM64 ELF binaries through `make -C platform controller-build router-build` with explicit cross-build environment |
+| Controller and Router builds | Both built as static Linux/ARM64 ELF binaries through `make -C xsphere controller-build router-build` with explicit cross-build environment |
 | API image smoke | HTTP health and OpenAPI passed in a network-isolated ARM64 container |
 | Edge configuration smoke | Passed `nginx -t`, including the optional frontend, using the official Linux/AMD64 Nginx 1.28.0 image |
 | Runtime node transactions | Temporary-filesystem tests covered additive v2/v3 configuration, checksum/architecture checks, failed validation, stale plans and rollback preservation |
@@ -60,14 +63,14 @@ checks. Node activation is explicitly opt-in, not part of local verification.
 For the shared Go binaries, the command used was:
 
 ```sh
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 make -C platform controller-build router-build
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 make -C xsphere controller-build router-build
 ```
 
 The ARM64 Nginx layer stalled through both attempted registry routes. The AMD64
 image was downloaded successfully and explicitly selected for the syntax test:
 
 ```sh
-EDGE_PLATFORM=linux/amd64 make -C platform smoke-images
+EDGE_PLATFORM=linux/amd64 make -C xsphere smoke-images
 ```
 
 This validates Nginx configuration, not ARM64 Nginx startup or a full ARM cluster.
@@ -85,7 +88,7 @@ Suitable for publishing to `Axpz/agent-sandbox` on `product/xsphere` as a **deve
 integration baseline**, not as a production release. The remote was reachable and
 did not yet contain that branch when checked. No commit or push was performed.
 
-Scope for the eventual reviewed commit: `platform/`, root `.dockerignore`, and the
+Scope for the eventual reviewed commit: the product directory (now `xsphere/`), root `.dockerignore`, and the
 small image-discovery exclusion plus regression test in `dev/tools/push-images`
 and `dev/tools/push_images_test.py`. Existing unrelated controller edits and raw lab
 files must remain unstaged. Exclude downloaded binaries, build output, node plans,

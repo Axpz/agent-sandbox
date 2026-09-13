@@ -53,6 +53,8 @@ Earlier same-node Pod tests used official `release-20260817.0` runsc
 newer source pin above. The immutable [build and checksum record](https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/platform/runtime/gvisor.lock.json)
 and [source/build archive](https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/_demo/gvisor-cr/restore-shim.md)
 preserve the old patch and reproduction details without maintaining them here.
+These fixed-commit URLs retain their original directory names so the evidence
+remains accessible after the product directory rename.
 
 The tested scope was one node and a single application container. ARM64 required
 a Linux VM with PAC disabled; disabling PAC reduces VM protection and is not a

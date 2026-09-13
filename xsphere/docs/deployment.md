@@ -29,11 +29,11 @@ of any current resources. Do not expose this unauthenticated baseline publicly.
 From the repository root:
 
 ```sh
-make -C platform install
-make -C platform check
-make -C platform image API_IMAGE=sandbox-api:xsphere-dev
-make -C platform render NAMESPACE=xsphere-dev
-make -C platform controller-render
+make -C xsphere install
+make -C xsphere check
+make -C xsphere image API_IMAGE=sandbox-api:xsphere-dev
+make -C xsphere render NAMESPACE=xsphere-dev
+make -C xsphere controller-render
 ```
 
 For kind, load the newly built image only into the explicitly selected cluster:
@@ -45,18 +45,18 @@ kind load docker-image sandbox-api:xsphere-dev --name YOUR_KIND_CLUSTER
 The API Dockerfile defaults to `oven/bun:1.3.5-slim`. A mirror can be chosen through
 Docker's `--build-arg BUN_IMAGE=...`; no regional mirror is hard-coded into source.
 Keep architecture and immutable digests in your release record when publishing.
-`make -C platform images` builds API, controller and Router locally, without pushing
+`make -C xsphere images` builds API, controller and Router locally, without pushing
 or loading them into a cluster. Existing controller/Router build targets and
 Dockerfiles remain the implementation; there is no duplicate source tree.
 
 With the API and Nginx images already available locally, run
-`make -C platform smoke-images`. `API_IMAGE` and `EDGE_IMAGE` may select local
+`make -C xsphere smoke-images`. `API_IMAGE` and `EDGE_IMAGE` may select local
 verification tags; `EDGE_PLATFORM` can explicitly select an available architecture
 for a configuration-only check (it does not validate the other architecture).
 This checks API health/OpenAPI and rendered Nginx configuration
 in network-isolated test containers. It is not Kubernetes or SDK E2E coverage.
 
-Create an environment-specific values file under `platform/local/`, based on
+Create an environment-specific values file under `xsphere/local/`, based on
 [values-dev.yaml](../deploy/values-dev.yaml). For example, a new namespace with an
 unprivileged envd-compatible runtime could use:
 
@@ -94,11 +94,11 @@ existing business workloads until a separate security/profile review is complete
 Run these manually after selecting context, namespace, images and values:
 
 ```sh
-helm template xsphere platform/deploy/chart \
-  --namespace xsphere-dev -f platform/local/values.yaml
-helm upgrade --install xsphere platform/deploy/chart \
+helm template xsphere xsphere/deploy/chart \
+  --namespace xsphere-dev -f xsphere/local/values.yaml
+helm upgrade --install xsphere xsphere/deploy/chart \
   --kube-context YOUR_CONTEXT --namespace xsphere-dev --create-namespace \
-  -f platform/local/values.yaml --wait --timeout 5m
+  -f xsphere/local/values.yaml --wait --timeout 5m
 ```
 
 Keep API and Edge access private, such as localhost-only `kubectl port-forward`.

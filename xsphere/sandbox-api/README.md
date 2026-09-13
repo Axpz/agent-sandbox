@@ -9,13 +9,13 @@ The old repository is retained as a reference, not a second copy to maintain.
 From the repository root:
 
 ```sh
-make -C platform install
-make -C platform check
+make -C xsphere install
+make -C xsphere check
 ```
 
 To run against a deliberately selected development cluster, configure the values
 shown in [.env.example](.env.example) through your shell or a local `.env`, then use
-`make -C platform dev`. This starts a real API capable of changing that cluster;
+`make -C xsphere dev`. This starts a real API capable of changing that cluster;
 it is not needed for offline tests. Keep its listening port private.
 
 Kubernetes configuration selection:

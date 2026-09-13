@@ -125,7 +125,7 @@ class ProductDirectorySelectionTest(unittest.TestCase):
     """Product dependencies and fetched runtime sources must not become images."""
 
     def test_product_directory_is_pruned_without_excluding_router(self):
-        directories = ["platform", "sandbox-router"]
+        directories = ["xsphere", "sandbox-router"]
         args = _make_args(images=[])
         with (
             mock.patch.object(push_images.os, "walk", return_value=[(".", directories, [])]),

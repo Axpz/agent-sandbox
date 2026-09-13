@@ -1,7 +1,7 @@
 # Product images have their own build contexts. Do not send local runtime
 # sources, dependency caches, node plans or credentials to upstream builds.
 .git
-/platform
+/xsphere
 /_demo
 /bin
 **/node_modules

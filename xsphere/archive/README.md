@@ -9,7 +9,7 @@ raw service logs and private business source are intentionally excluded.
 
 | Original source | What is retained here |
 | --- | --- |
-| `agentsphere-gateway/src/` and build files | Source under `platform/sandbox-api/`, including pre-existing uncommitted changes |
+| `agentsphere-gateway/src/` and build files | Source under `xsphere/sandbox-api/`, including pre-existing uncommitted changes |
 | `agentsphere-gateway/deploy/k8s/` | Parameterized API/Router/Edge chart and optional generic runtime template |
 | `agentsphere-gateway/MILESTONE_KIND_E2E_20260823.md` | ARM64 SDK/business milestone below |
 | `agentsphere-gateway/ARCHITECTURE_STATUS.md` | Historical context; earlier than the completed milestone, not current readiness |
@@ -23,7 +23,7 @@ explicit invalid kubeconfig, parameterize the Docker base, and make test tooling
 explicit. Contract/backend behavior and ownership names remain unchanged.
 
 Do not maintain both API copies going forward. Review and publish this baseline
-first, then use `platform/sandbox-api` for further product development. Retiring the
+first, then use `xsphere/sandbox-api` for further product development. Retiring the
 old repository is a separate decision, not part of this import.
 
 ## Historical Milestones
@@ -50,7 +50,7 @@ used in the Pod tests. Do not mix those two levels of verification; see the
 
 ## New Product Verification
 
-`make -C platform check` is the reproducible offline entry for this import. It
+`make -C xsphere check` is the reproducible offline entry for this product. It
 covers API lifecycle contracts with a mocked Kubernetes client, fail-closed config
 selection, Helm names/namespaces, private defaults, runtime opt-in, lint and build.
 It does not rerun the historical milestones or change any live cluster.
