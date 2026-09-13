@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules
+dist
+.codex-tmp
+*.log
+.env
+.env.*
+kubeconfig*
+test

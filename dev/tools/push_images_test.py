@@ -121,6 +121,22 @@ class BuildxDockerfileArgTest(unittest.TestCase):
         self.assertEqual(captured["cwd"], ".")
 
 
+class ProductDirectorySelectionTest(unittest.TestCase):
+    """Product dependencies and fetched runtime sources must not become images."""
+
+    def test_product_directory_is_pruned_without_excluding_router(self):
+        directories = ["platform", "sandbox-router"]
+        args = _make_args(images=[])
+        with (
+            mock.patch.object(push_images.os, "walk", return_value=[(".", directories, [])]),
+            mock.patch.object(push_images, "create_buildx_builder_if_not_exists"),
+            mock.patch.object(push_images, "build_and_push_image") as build_image,
+        ):
+            push_images.main(args)
+        self.assertEqual(directories, ["sandbox-router"])
+        build_image.assert_not_called()
+
+
 class ControllerOnlySelectionTest(unittest.TestCase):
     """The controller-only mode must not build other discovered images."""
 

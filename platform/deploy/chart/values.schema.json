@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "definitions": {
+    "dnsName": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+    },
+    "image": {"type": "string", "pattern": "^\\S*$"},
+    "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+  },
+  "properties": {
+    "development": {
+      "type": "object",
+      "properties": {
+        "allowUnauthenticated": {"type": "boolean"},
+        "skipKubernetesTLSVerify": {"type": "boolean"}
+      }
+    },
+    "domain": {"$ref": "#/definitions/dnsName"},
+    "imagePullSecrets": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}}},
+    "nodeSelector": {"type": "object", "additionalProperties": {"type": "string"}},
+    "api": {
+      "type": "object",
+      "properties": {
+        "image": {"$ref": "#/definitions/image"},
+        "pullPolicy": {"$ref": "#/definitions/pullPolicy"},
+        "envdVersion": {"type": "string", "minLength": 1},
+        "warmPool": {"$ref": "#/definitions/dnsName"}
+      }
+    },
+    "router": {
+      "type": "object",
+      "properties": {
+        "image": {"$ref": "#/definitions/image"},
+        "pullPolicy": {"$ref": "#/definitions/pullPolicy"},
+        "clusterDomain": {"$ref": "#/definitions/dnsName"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "properties": {
+        "image": {"type": "string", "minLength": 1, "pattern": "^\\S+$"},
+        "serviceType": {"enum": ["ClusterIP", "NodePort"]},
+        "nodePort": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "frontend": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "host": {"anyOf": [{"const": ""}, {"$ref": "#/definitions/dnsName"}]},
+            "upstream": {"type": "string", "pattern": "^$|^http://[a-zA-Z0-9.-]+(:[0-9]+)?/?$"}
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "templateName": {"$ref": "#/definitions/dnsName"},
+        "image": {"$ref": "#/definitions/image"},
+        "runtimeClassName": {"anyOf": [{"const": ""}, {"$ref": "#/definitions/dnsName"}]},
+        "warmPoolReplicas": {"type": "integer", "minimum": 0},
+        "workspace": {
+          "type": "object",
+          "properties": {
+            "storageClass": {"anyOf": [{"const": ""}, {"$ref": "#/definitions/dnsName"}]},
+            "size": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"},
+            "mountPath": {"type": "string", "pattern": "^/"}
+          }
+        }
+      }
+    }
+  }
+}

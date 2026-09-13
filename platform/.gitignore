@@ -1,0 +1,14 @@
+local/
+out/
+.env
+.env.*
+!.env.example
+*.log
+*.img
+*.tar
+*.tar.gz
+*.pem
+*.key
+kubeconfig*
+SHA256SUMS.local
+__pycache__/

@@ -180,7 +180,8 @@ def main(args):
                  "(podman push to registry is not yet supported; use docker for registry pushes)")
     image_tag = args.image_tag or utils.get_image_tag()
     excluded_dirs = {"bin", "dev", "docs", "k8s", "site",
-                     "temp", "tests", "tmp", ".venv"}
+                     "temp", "tests", "tmp", ".venv", "platform"}
+    # xsphere owns product images and downloaded runtime sources separately.
 
     if args.controller_only:
         # Avoid walking the largest image-only subtrees. The explicit image

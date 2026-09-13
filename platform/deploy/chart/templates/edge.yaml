@@ -1,0 +1,121 @@
+{{- define "xsphere.proxySettings" -}}
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection $connection_upgrade;
+proxy_buffering off;
+proxy_cache off;
+proxy_socket_keepalive on;
+proxy_read_timeout 3600s;
+proxy_send_timeout 3600s;
+{{- end -}}
+{{- define "xsphere.nginx" -}}
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+server {
+    listen 80 default_server;
+    server_name _;
+    if ($http_e2b_sandbox_id = "") { return 400; }
+    if ($http_e2b_sandbox_port = "") { return 400; }
+    location / {
+        proxy_set_header X-Sandbox-ID $http_e2b_sandbox_id;
+        proxy_set_header X-Sandbox-Port $http_e2b_sandbox_port;
+        {{- include "xsphere.proxySettings" . | nindent 8 }}
+        proxy_pass http://sandbox-router-svc.{{ .Release.Namespace }}.svc.{{ .Values.router.clusterDomain }}:8080;
+    }
+}
+server {
+    listen 80;
+    server_name ~^(?<sbport>[0-9]+)-(?<sbid>.+)\.{{ regexQuoteMeta .Values.domain }}$;
+    location / {
+        proxy_set_header X-Sandbox-ID $sbid;
+        proxy_set_header X-Sandbox-Port $sbport;
+        {{- include "xsphere.proxySettings" . | nindent 8 }}
+        proxy_pass http://sandbox-router-svc.{{ .Release.Namespace }}.svc.{{ .Values.router.clusterDomain }}:8080;
+    }
+}
+{{- if .Values.edge.frontend.enabled }}
+server {
+    listen 80;
+    server_name {{ .Values.edge.frontend.host }};
+    location / {
+        {{- include "xsphere.proxySettings" . | nindent 8 }}
+        proxy_pass {{ .Values.edge.frontend.upstream }};
+    }
+}
+{{- end }}
+{{- end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sandbox-edge-nginx
+  namespace: {{ .Release.Namespace }}
+data:
+  default.conf: |
+    {{- include "xsphere.nginx" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-edge
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-edge
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sandbox-edge
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include "xsphere.nginx" . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: sandbox-edge
+        {{- include "xsphere.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "xsphere.nodeSettings" . | nindent 6 }}
+      containers:
+        - name: nginx
+          image: {{ .Values.edge.image | quote }}
+          ports:
+            - {name: http, containerPort: 80}
+          volumeMounts:
+            - {name: config, mountPath: /etc/nginx/conf.d, readOnly: true}
+          readinessProbe:
+            tcpSocket: {port: http}
+          livenessProbe:
+            tcpSocket: {port: http}
+          resources:
+            {{- toYaml .Values.edge.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: sandbox-edge-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-edge
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-edge
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.edge.serviceType }}
+  selector:
+    app.kubernetes.io/name: sandbox-edge
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      {{- if eq .Values.edge.serviceType "NodePort" }}
+      nodePort: {{ .Values.edge.nodePort }}
+      {{- end }}

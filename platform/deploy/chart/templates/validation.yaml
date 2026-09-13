@@ -1,0 +1,12 @@
+{{- if not .Values.development.allowUnauthenticated -}}
+{{- fail "xsphere v0.1 has no end-to-end authentication. For private development only, explicitly set development.allowUnauthenticated=true." -}}
+{{- end -}}
+{{- $api := required "api.image is required; build and publish/load sandbox-api first" .Values.api.image -}}
+{{- $router := required "router.image is required; use the existing agent-sandbox Router build" .Values.router.image -}}
+{{- if .Values.runtime.enabled -}}
+{{- $runtime := required "runtime.image is required when runtime.enabled=true" .Values.runtime.image -}}
+{{- end -}}
+{{- if .Values.edge.frontend.enabled -}}
+{{- $host := required "edge.frontend.host is required" .Values.edge.frontend.host -}}
+{{- $upstream := required "edge.frontend.upstream is required" .Values.edge.frontend.upstream -}}
+{{- end -}}

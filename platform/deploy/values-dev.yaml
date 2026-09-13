@@ -1,0 +1,13 @@
+# Private, single-node integration example, not a production configuration.
+# Build/load the API image; load a compatible Router image or replace its value.
+development:
+  allowUnauthenticated: true
+  skipKubernetesTLSVerify: false
+api:
+  image: sandbox-api:xsphere-dev
+router:
+  image: kind.local/sandbox-router-go:v0.5.4-arm64
+# Reuse the existing pool. To create one, explicitly set runtime.enabled=true,
+# runtime.image and the correct workspace mount path for that image.
+runtime:
+  enabled: false

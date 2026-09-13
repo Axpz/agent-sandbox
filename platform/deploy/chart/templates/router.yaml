@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sandbox-router
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sandbox-router
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sandbox-router
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: sandbox-router
+subjects:
+  - kind: ServiceAccount
+    name: sandbox-router
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-router
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-router
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sandbox-router
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sandbox-router
+        {{- include "xsphere.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: sandbox-router
+      {{- include "xsphere.nodeSettings" . | nindent 6 }}
+      containers:
+        - name: router
+          image: {{ .Values.router.image | quote }}
+          imagePullPolicy: {{ .Values.router.pullPolicy }}
+          args:
+            - --http-bind-address=:8080
+            - --metrics-bind-address=:9090
+            - --health-probe-bind-address=:8081
+            - --cluster-domain={{ .Values.router.clusterDomain }}
+            - --proxy-timeout=180s
+            - --upstream-max-retries=3
+            - --cache-enabled=true
+            - --cache-namespace={{ .Release.Namespace }}
+          ports:
+            - {name: proxy, containerPort: 8080}
+            - {name: metrics, containerPort: 9090}
+            - {name: healthz, containerPort: 8081}
+          startupProbe:
+            httpGet: {path: /readyz, port: healthz}
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /readyz, port: healthz}
+          livenessProbe:
+            httpGet: {path: /healthz, port: healthz}
+          resources:
+            {{- toYaml .Values.router.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-router-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-router
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sandbox-router
+  ports:
+    - {name: proxy, port: 8080, targetPort: proxy}

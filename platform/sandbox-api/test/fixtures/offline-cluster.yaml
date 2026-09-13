@@ -1,0 +1,16 @@
+# Deliberately non-routable test fixture; contains no credentials or exec plugins.
+apiVersion: v1
+kind: Config
+clusters:
+  - name: offline
+    cluster:
+      server: https://kubernetes.example.invalid
+contexts:
+  - name: offline
+    context:
+      cluster: offline
+      user: offline
+current-context: offline
+users:
+  - name: offline
+    user: {}

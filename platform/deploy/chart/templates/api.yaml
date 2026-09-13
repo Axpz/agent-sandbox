@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-api
+    {{- include "xsphere.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: [extensions.agents.x-k8s.io]
+    resources: [sandboxclaims, sandboxtemplates, sandboxwarmpools]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [agents.x-k8s.io]
+    resources: [sandboxes]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: sandbox-api
+subjects:
+  - kind: ServiceAccount
+    name: sandbox-api
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-api
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sandbox-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sandbox-api
+        {{- include "xsphere.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: sandbox-api
+      {{- include "xsphere.nodeSettings" . | nindent 6 }}
+      containers:
+        - name: api
+          image: {{ .Values.api.image | quote }}
+          imagePullPolicy: {{ .Values.api.pullPolicy }}
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: AGENTSPHERE_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: AGENTSPHERE_WARMPOOL
+              value: {{ .Values.api.warmPool | quote }}
+            - name: AGENTSPHERE_DOMAIN
+              value: {{ .Values.domain | quote }}
+            - name: AGENTSPHERE_ENVD_VERSION
+              value: {{ .Values.api.envdVersion | quote }}
+            - name: AGENTSPHERE_K8S_SKIP_TLS_VERIFY
+              value: {{ .Values.development.skipKubernetesTLSVerify | quote }}
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: sandbox-api
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sandbox-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "product": "xsphere",
+  "date": "2026-09-13",
+  "imports": [
+    {
+      "component": "sandbox-api",
+      "sourceRepository": "agentsphere-gateway",
+      "sourceCommit": "eab3739d2027a92f865d0bcca405df9eb1fc5ad2",
+      "includesUncommittedChanges": true,
+      "sourceFiles": [
+        {
+          "path": "src/config.ts",
+          "sha256": "2276474c6184f853e650b488294b155cd8bb42e5d117ce4d19911a69a8dd8baa"
+        },
+        {
+          "path": "src/index.ts",
+          "sha256": "2576438a40621419525397d2c0473b932f811b524eeef17c4b5bb37bc1941cc3"
+        },
+        {
+          "path": "src/logger.ts",
+          "sha256": "8bf6885b3440ed0b1be618a5a48712dd84e9786f67e00bdef27b3ab636b663a2"
+        },
+        {
+          "path": "src/app.ts",
+          "sha256": "7ea76ac39112bf6b975fcd5fecd4bbbc558e7776e31137aa4e654370fc7fa973"
+        },
+        {
+          "path": "src/k8s/backend.ts",
+          "sha256": "0ba8d18fd2446c86b34d6761d2fbddfdf904bb493cc3876c11e22761965b69e8"
+        },
+        {
+          "path": "src/k8s/client.ts",
+          "sha256": "6f20b1f9b05f5ee1f2fe2b75117f47d1128c77bc496ae72cb5947bf095af7d3a"
+        },
+        {
+          "path": "src/contract/schemas.ts",
+          "sha256": "523523b1863994e569a7bed5a0ed1df34636df1e65d5a2d442ffde2fedd3f355"
+        },
+        {
+          "path": "src/contract/routes.ts",
+          "sha256": "9fc93fcaa245f1631892b7f98c8b7ce26f026806792c0107191988ce2f896895"
+        },
+        {
+          "path": "package.json",
+          "sha256": "aea9a3056662e6486f56efdc2aaf6e6a5b29cabf609a2fbd302d5cd2db00f454"
+        },
+        {
+          "path": "bun.lock",
+          "sha256": "9f79fa0985887121a85799646b816df02f2aa4a89b7ff95a0fd0004ef885bc2f"
+        },
+        {
+          "path": "biome.json",
+          "sha256": "aa573c8390b7a2209b6aa9af09137dd6e0915df90274e92c5bec5e5cff289fb3"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "b78ea3ec65ed9c53629db00d67ca323c7f6d8aa8a3b3a7caf615f87c276e315d"
+        },
+        {
+          "path": ".dockerignore",
+          "sha256": "90c078116dcf68ff7986a77ed902529fefc05198890c82bef107445d4406d9da"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "3215c34ef617dd134e3242b6f7b77478602f5c77490d8180f55ca6987e48d6bc"
+        },
+        {
+          "path": "Dockerfile",
+          "sha256": "6041d73aaaad3a6959d97b7b4f196b21547420e147cfe389a39d86a6a577f23d"
+        }
+      ],
+      "notes": "Imported from the existing working tree, not only HEAD. Hashes describe source bytes before portability and formatting edits. The source repository is retained unchanged."
+    }
+  ],
+  "upstream": {
+    "repository": "https://github.com/kubernetes-sigs/agent-sandbox",
+    "commit": "c8f29552bf6cc85c77d26ae2f24d88143b1201da"
+  },
+  "runtime": {
+    "deliveryLock": "../runtime/gvisor.lock.json",
+    "deliveryEntry": "../runtime/gvisor.py",
+    "defaultDeliveryBaseCommit": "50e1502a95d36ad2faf2c7ef33b8bf21fe975293",
+    "sourceRepository": "https://github.com/Axpz/gvisor",
+    "sourceCommit": "7e3a4c73201e3ba06d825dc4e7e4d7887de545bd",
+    "status": "build-and-unit-tested; not the previously Pod-E2E-tested release"
+  }
+}

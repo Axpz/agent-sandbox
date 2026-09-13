@@ -1,0 +1,52 @@
+{{- if .Values.runtime.enabled }}
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: {{ .Values.runtime.templateName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  envVarsInjectionPolicy: Allowed
+  networkPolicyManagement: Unmanaged
+  podTemplate:
+    spec:
+      automountServiceAccountToken: false
+      {{- include "xsphere.nodeSettings" . | nindent 6 }}
+      {{- with .Values.runtime.runtimeClassName }}
+      runtimeClassName: {{ . | quote }}
+      {{- end }}
+      containers:
+        - name: runtime
+          image: {{ .Values.runtime.image | quote }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: envd, containerPort: 49983}
+          volumeMounts:
+            - name: workspace
+              mountPath: {{ .Values.runtime.workspace.mountPath | quote }}
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+      spec:
+        storageClassName: {{ .Values.runtime.workspace.storageClass | quote }}
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.runtime.workspace.size | quote }}
+  volumeClaimTemplatesPolicy: Disallowed
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: {{ .Values.api.warmPool }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "xsphere.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.runtime.warmPoolReplicas }}
+  sandboxTemplateRef:
+    name: {{ .Values.runtime.templateName }}
+  updateStrategy:
+    type: Recreate
+{{- end }}

@@ -1,0 +1,51 @@
+# No unauthenticated deployment is allowed without an explicit opt-in.
+development:
+  allowUnauthenticated: false
+  skipKubernetesTLSVerify: false
+
+domain: sandbox.example.invalid
+imagePullSecrets: []
+nodeSelector: {}
+
+api:
+  image: ""
+  pullPolicy: IfNotPresent
+  envdVersion: "0.6.9"
+  warmPool: codesphere-warmpool
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "1", memory: 512Mi}
+
+router:
+  image: ""
+  pullPolicy: IfNotPresent
+  clusterDomain: cluster.local
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "1", memory: 512Mi}
+
+edge:
+  image: nginx:1.28.0-alpine
+  serviceType: ClusterIP
+  nodePort: 30080
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 250m, memory: 128Mi}
+  # Optional legacy UI forwarding; the product does not deploy Codesphere itself.
+  frontend:
+    enabled: false
+    host: ""
+    upstream: ""
+
+# Leave off when reusing an existing Template/WarmPool. This chart does not
+# enable memory checkpoint annotations or provision node runtimes.
+runtime:
+  enabled: false
+  templateName: codesphere-runtime-template
+  image: ""
+  runtimeClassName: ""
+  warmPoolReplicas: 0
+  workspace:
+    storageClass: standard
+    size: 10Gi
+    mountPath: /workspace
