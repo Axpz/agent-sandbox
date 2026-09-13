@@ -14,7 +14,7 @@ raw service logs and private business source are intentionally excluded.
 | `agentsphere-gateway/MILESTONE_KIND_E2E_20260823.md` | ARM64 SDK/business milestone below |
 | `agentsphere-gateway/ARCHITECTURE_STATUS.md` | Historical context; earlier than the completed milestone, not current readiness |
 | `_demo/gvisor-cr/arm64-nopac.md`, `level2.md`, `kubectl-pause-resume.md` | Memory workflow boundary and runtime verification record |
-| `_demo/gvisor-cr/restore-shim.md` and `restore-shim.patch` | Existing tracked source/build archive; gVisor stays an external dependency |
+| Historical restore shim source/build archive | Immutable Git-history links in the [runtime reference](../runtime/); current source lives in `Axpz/gvisor` |
 
 [import-manifest.json](import-manifest.json) records original source hashes and
 the source commit. Hashes refer to pre-import bytes, not the modified destination.
@@ -46,7 +46,7 @@ restore cleanup taking about two minutes remains a recorded limitation.
 **Rebased shim source:** the retained gVisor fork branch compiled for AMD64/ARM64
 and passed the recorded unit checks. It is a newer source base than the binaries
 used in the Pod tests. Do not mix those two levels of verification; see the
-[runtime lock record](../runtime/gvisor.lock.json).
+[runtime version reference](../runtime/).
 
 ## New Product Verification
 

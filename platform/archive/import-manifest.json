@@ -78,9 +78,8 @@
     "commit": "c8f29552bf6cc85c77d26ae2f24d88143b1201da"
   },
   "runtime": {
-    "deliveryLock": "../runtime/gvisor.lock.json",
-    "deliveryEntry": "../runtime/gvisor.py",
-    "defaultDeliveryBaseCommit": "50e1502a95d36ad2faf2c7ef33b8bf21fe975293",
+    "documentation": "../runtime/README.md",
+    "historicalBuildRecord": "https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/platform/runtime/gvisor.lock.json",
     "sourceRepository": "https://github.com/Axpz/gvisor",
     "sourceCommit": "7e3a4c73201e3ba06d825dc4e7e4d7887de545bd",
     "status": "build-and-unit-tested; not the previously Pod-E2E-tested release"

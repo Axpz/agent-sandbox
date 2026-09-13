@@ -3,6 +3,12 @@
 The first table records the initial import. See **Unified Portal Verification**
 below for the follow-up that added runtime delivery and completed Nginx syntax testing.
 
+This is a historical record of the initial product baseline, published as
+[`9d94c78`](https://github.com/Axpz/agent-sandbox/commit/9d94c78542c2d0380a041c1edda5bf6a4bc8c100).
+The subsequent simplification removed the local gVisor CLI, its tests and patch
+copy. Use the [runtime reference](../runtime/) for current ownership and versions;
+the runtime commands and 62-test count below describe that earlier baseline.
+
 Scope: the new `platform/` integration on `product/xsphere`. No live Kubernetes,
 VM, node runtime, existing controller or original API repository was changed.
 

@@ -20,8 +20,9 @@ of any current resources. Do not expose this unauthenticated baseline publicly.
   profile with a compatible envd image, workspace mount path and StorageClass.
 - gVisor is optional. Selecting `runtime.runtimeClassName=gvisor-l2` requires that
   RuntimeClass and its node handler to already exist. It does not enable checkpointing.
-  New isolated runtime installations use `gvisor-xsphere` through the repository's
-  [runtime delivery entry](../runtime/); existing `gvisor-l2` deployments are not renamed.
+  Source versions and manual node integration are documented in the
+  [external runtime reference](../runtime/). This repository does not install gVisor
+  or rename existing `gvisor-l2` deployments.
 
 ## Build and Render
 

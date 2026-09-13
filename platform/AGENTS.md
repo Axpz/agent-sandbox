@@ -14,12 +14,11 @@ component. Follow the repository-root AGENTS.md as well as these constraints.
   Do not describe it as checkpoint-based pause/resume until it is integrated.
 - Unauthenticated development deployment must be explicitly acknowledged. Do not
   remove this guard to imply production readiness. Do not expose the stack publicly.
-- `runtime/` owns pinned source, the delivery CLI and verification records. The
-  external gVisor fork is for upstream work, not a required second product repo.
-  Node install/rollback commands require explicit acknowledgement and never restart
-  services. Do not loosen stale-plan, architecture or rollback guards for convenience.
-- Runtime version and verification records belong in `runtime/`; binaries, memory
-  dumps, kubeconfigs, tokens, raw customer logs and machine-specific values do not.
+- `runtime/` is a documentation-only entry for the external `Axpz/gvisor` repository.
+  Pin source commits and distinguish build/unit evidence from Pod restore evidence.
+  Do not duplicate gVisor patches, build tools or node installers in this repository.
+- Link historical runtime verification records without importing binaries, memory
+  dumps, kubeconfigs, tokens, raw customer logs or machine-specific values.
 - Historical evidence belongs in `archive/`. Keep operational instructions in
   `docs/` current and clearly distinguish historical results from new tests.
 - Keep source imports traceable in `archive/import-manifest.json`. Preserve the

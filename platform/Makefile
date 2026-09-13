@@ -11,15 +11,14 @@ ROUTER_IMAGE ?= sandbox-router:xsphere-dev
 CONTROLLER_IMAGE ?= agent-sandbox-controller:xsphere-dev
 CONTROLLER_TAG ?= v0.5.4
 CONTROLLER_NAMESPACE ?= agent-sandbox-system
-ARGS ?= --help
 
-.PHONY: help install lint typecheck test build check render image dev runtime runtime-check controller-build router-build controller-image router-image images controller-render smoke-images
+.PHONY: help install lint typecheck test build check render image dev image-tools-check controller-build router-build controller-image router-image images controller-render smoke-images
 
 help:
 	@echo 'xsphere: install | check | build | render | image | dev'
-	@echo 'Runtime: runtime ARGS="--help" | runtime-check'
+	@echo 'gVisor: external dependency; see runtime/README.md'
 	@echo 'Shared components: controller-build | router-build | images | controller-render'
-	@echo 'check/render are offline. Runtime node changes require explicit acknowledgement.'
+	@echo 'check/render are offline and do not change node runtimes.'
 	@echo 'Override VALUES with a local file for your environment.'
 
 install:
@@ -38,7 +37,7 @@ test:
 build:
 	cd sandbox-api && $(BUN) run build
 
-check: lint typecheck test build runtime-check
+check: lint typecheck test build image-tools-check
 
 render:
 	@KUBECONFIG=/dev/null $(HELM) template $(RELEASE) deploy/chart --namespace $(NAMESPACE) -f $(VALUES)
@@ -49,12 +48,7 @@ image:
 dev:
 	cd sandbox-api && $(BUN) run dev
 
-runtime:
-	$(PYTHON) runtime/gvisor.py $(ARGS)
-
-runtime-check:
-	$(PYTHON) runtime/gvisor.py verify-lock
-	$(PYTHON) -m unittest discover -s runtime -p '*_test.py' -v -b
+image-tools-check:
 	$(PYTHON) -m unittest discover -s ../dev/tools -p 'push_images_test.py' -v -b
 
 controller-build:

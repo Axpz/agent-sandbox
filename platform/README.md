@@ -2,7 +2,7 @@
 
 Private development integration, version 0.1. The long-lived `product/xsphere`
 branch of `Axpz/agent-sandbox` is the single engineering portal: source, builds,
-runtime delivery, deployment, verification and records start here. It is not an upstream
+runtime references, deployment, verification and records start here. It is not an upstream
 agent-sandbox release or a production-readiness claim.
 
 ## Naming and Ownership
@@ -14,11 +14,15 @@ agent-sandbox release or a production-readiness claim.
 | agent-sandbox-controller | Reconcile Sandbox, Claim, Template and WarmPool | Existing repository-root code and [Helm chart](../helm/) |
 | sandbox-router | Forward requests to the selected Sandbox | Existing [Go Router](../sandbox-router/) |
 | sandbox-edge | Adapt SDK headers and wildcard hostnames to Router headers | [Deployment chart](deploy/chart/) |
-| runsc + shim | Sandbox isolation and optional memory restore | Locked upstream source + local patch + [delivery CLI](runtime/) |
+| runsc + shim | Sandbox isolation and optional memory restore | External `Axpz/gvisor` source; [pinned version and integration notes](runtime/) |
 
 `agentsphere-gateway` was the old repository name. The process, package, ownership
 labels and Kubernetes Service were already named `sandbox-api`, so that name stays.
 No API route, SDK field or `AGENTSPHERE_*` environment variable is renamed.
+
+gVisor source and patches are maintained in the external repository. This portal
+links to a fixed commit and its verification limits; it does not duplicate runtime
+build or installation tools.
 
 ## Local Checks
 
@@ -30,14 +34,13 @@ make -C platform install
 make -C platform check
 make -C platform render
 make -C platform image
-make -C platform runtime ARGS='--help'
 ```
 
 `check` runs lint, TypeScript checking, offline contract/configuration/chart tests,
-and a Bun build, plus runtime and image-discovery regression tests. It does not
+and a Bun build, plus image-discovery regression tests. It does not
 contact Kubernetes. `render` prints product manifests; `controller-render` uses
-the existing root controller chart. Runtime node edits are separate CLI commands
-requiring explicit acknowledgement; they never restart a service. Helm may warn about the
+the existing root controller chart. gVisor installation is a separate node operation,
+not a product Make target or Helm action. Helm may warn about the
 permissions of `/dev/null`, used as its offline kubeconfig; no credential file is read.
 
 The default dev profile uses locally built images, keeps all Services ClusterIP,
@@ -47,8 +50,8 @@ before installing anything. Put environment-specific values under `platform/loca
 
 `controller-build`, `router-build`, `controller-image`, `router-image` and `images`
 reuse existing source and Dockerfiles through the same Make entry. The root image
-scanner skips `platform/`; the root Docker context excludes it so local plans,
-dependencies and fetched sources do not enter upstream builds. `smoke-images`
+scanner skips `platform/`; the root Docker context excludes it so local configuration,
+dependencies and build outputs do not enter upstream builds. `smoke-images`
 tests already-available API and Nginx images without cluster access or public ports.
 
 ## Current Boundary

@@ -1,157 +1,66 @@
-# gVisor Delivery
+# gVisor External Dependency
 
-This branch is the runtime delivery entry point: upstream source is pinned,
-the patch is stored here, and downloads/builds/bundles/configuration all run through
-`make -C platform runtime`. The separate Axpz/gvisor fork is useful for upstream
-contributions, but is not required for these commands. No Git submodule or manually
-maintained second checkout is required. Binaries and downloaded source are gitignored.
+gVisor source, the restore-shim change and build tooling are maintained in
+[Axpz/gvisor](https://github.com/Axpz/gvisor/tree/feat/shim-restore-host-image-path).
+This directory only records the dependency and its integration boundary. It does
+not contain a second patch copy, build wrapper or node installer.
 
-## Prepare and Build
+## Pinned Source
 
-Run from the repository root. Source preparation and packaging require Python 3.11+,
-Git and curl. Compilation uses the historically verified Linux/amd64 build route
-with Make, a C/C++ toolchain and Bazel 8.3.1. ARM64 output additionally requires
-the AArch64 cross-toolchain. The script refuses to compile on macOS or to treat
-an ARM64 host as an x86 build host; it does not install system packages or start a VM.
+- Development branch: `feat/shim-restore-host-image-path`.
+- Fixed commit: [`7e3a4c73201e3ba06d825dc4e7e4d7887de545bd`](https://github.com/Axpz/gvisor/commit/7e3a4c73201e3ba06d825dc4e7e4d7887de545bd).
+- Upstream base: `8865c1523f7af680f26eaa20ebcc702989ed4923`.
+- Recorded verification: AMD64/ARM64 shim builds and unit tests. **Pod restore E2E
+  has not been rerun on this source base.** Pin the commit, not the moving branch.
 
-```sh
-make -C platform runtime ARGS='--help'
-make -C platform runtime ARGS='fetch-runsc --arch arm64 --output out/runsc-arm64'
-make -C platform runtime ARGS='prepare --workdir out/gvisor-build'
-make -C platform runtime ARGS='verify-source --workdir out/gvisor-build'
-make -C platform runtime ARGS='build --workdir out/gvisor-build --arch arm64 --runsc out/runsc-arm64 --output out/runtime-arm64'
-```
+The shim accepts `dev.gvisor.internal.restore.host-image-path` and invokes
+`runsc restore` during Pod creation. This is not an ARM64 PAC fix or automatic
+checkpoint coordination in sandbox-api.
 
-Use `amd64` throughout for an AMD64 bundle. `prepare --source /path/to/git/repo`
-can use an existing local Git cache, but still fetches/verifies the locked commit
-into a fresh directory. It never changes the source repository. Existing output
-directories are refused instead of reset or deleted.
+## Artifacts and Node Integration
 
-Build runs the existing shim/proc unit targets on Linux/amd64, exports the selected
-architecture's shim, and packages it with the matching official runsc. ARM64 unit
-execution and real Pod E2E remain promotion gates for a newly built ARM64 artifact.
-Build stamps can change shim hashes; the bundle records actual checksums and source
-provenance instead of pretending a rebuild has the historical binary hash.
+No downloadable custom binary release is recorded here. Build the pinned source
+using its [build instructions](https://github.com/Axpz/gvisor/blob/7e3a4c73201e3ba06d825dc4e7e4d7887de545bd/README.md#installing-from-source),
+or reuse a previously verified artifact with recorded checksums. Official upstream
+releases must not be assumed to contain this custom shim change. Keep source commit,
+architecture, build options and artifact checksums together. Follow that source's
+packaging layout, including required sidecars; do not mix arbitrary runsc/shim versions.
 
-To reuse the recorded binaries, without recompiling:
+Node installation is separate from xsphere Helm deployment. Review the pinned
+[containerd integration guide](https://github.com/Axpz/gvisor/blob/7e3a4c73201e3ba06d825dc4e7e4d7887de545bd/g3doc/user_guide/containerd/quick_start.md)
+against the selected node's containerd version before making changes:
 
-```sh
-make -C platform runtime ARGS='bundle --arch arm64 --runsc /path/to/runsc --shim /path/to/containerd-shim-runsc-v1 --output out/runtime-arm64'
-make -C platform runtime ARGS='verify-bundle --bundle out/runtime-arm64'
-```
+1. Back up node configuration and retain the current binaries. Install a compatible
+   runtime in a versioned directory with a separate containerd handler; leave the
+   default runtime unchanged. In kind, configure the node container, not host containerd.
+2. Configure annotation forwarding (`pod_annotations = ["dev.gvisor.internal.*"]`)
+   and an access-controlled checkpoint directory visible to the node runtime.
+   Review node activation in a maintenance window and verify CRI health.
+3. Select the existing RuntimeClass in the business template. For the optional
+   chart template, set `runtime.runtimeClassName` to that class. Names such as
+   `gvisor-l2` / `runsc-l2` are configuration names, not versions. The chart neither
+   creates the RuntimeClass nor installs the handler.
 
-`bundle` accepts only the recorded official runsc and patched-shim hashes. The
-bundle contains two ELF binaries, `runsc.toml` and a manifest. This is the tested
-local-checkpoint/systrap profile, not every gVisor feature: metric-server and GCS
-checkpoint sidecars are not packaged. Newer full gVisor releases require reviewing
-the [upstream installation layout](https://gvisor.dev/docs/user_guide/install/),
-not simply changing the version string in this two-binary profile.
+Before rollback, stop scheduling to the new handler and account for its running
+workloads. Restore the reviewed previous configuration without overwriting later
+operator changes; restart the selected service only in an approved maintenance
+window. Retain binaries needed by existing shims, checkpoint artifacts and PVCs.
 
-## New Isolated kind Cluster
+## Historical Compatibility
 
-On the chosen **Linux** kind host, create a dedicated empty checkpoint directory,
-then render configuration using an explicit node image and an unused cluster name:
+Earlier same-node Pod tests used official `release-20260817.0` runsc
+(`50e1502a95d36ad2faf2c7ef33b8bf21fe975293`) with a locally patched shim, not the
+newer source pin above. The immutable [build and checksum record](https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/platform/runtime/gvisor.lock.json)
+and [source/build archive](https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/_demo/gvisor-cr/restore-shim.md)
+preserve the old patch and reproduction details without maintaining them here.
 
-```sh
-make -s -C platform runtime ARGS='kind-render --bundle out/runtime-arm64 --checkpoint-dir /path/to/empty-checkpoints --name xsphere-lab --image kindest/node:v1.36.1' > platform/out/kind.json
-```
+The tested scope was one node and a single application container. ARM64 required
+a Linux VM with PAC disabled; disabling PAC reduces VM protection and is not a
+general ARM fix. Keep the runtime, CPU features, business image and PVC compatible.
+Validate new builds with real Pod restore tests before promotion. Failed application
+restore cleanup taking about two minutes remains a recorded limitation.
 
-JSON is valid YAML for kind. This mounts the immutable runtime bundle read-only
-and the checkpoint directory at `/var/lib/xsphere/checkpoints` inside the node.
-There are no public port mappings, controller installs or changes to an existing
-cluster. Verify the image architecture and CPU features before proceeding.
-
-Only after approval to create this isolated cluster:
-
-```sh
-kind create cluster --config platform/out/kind.json --kubeconfig platform/out/kubeconfig-xsphere-lab
-```
-
-The generated handler is `runsc-xsphere`. Render the node-scoped RuntimeClass:
-
-```sh
-make -s -C platform runtime ARGS='runtimeclass-render --node xsphere-lab-control-plane' > platform/out/runtimeclass.json
-```
-
-Review and activate it with an explicit kubectl context after checking CRI health,
-then choose `gvisor-xsphere` in the reviewed business template. For the optional
-chart template, set `runtime.runtimeClassName=gvisor-xsphere`.
-**Never recreate the existing working cluster
-to add a mount.** The root controller chart and product chart remain separate
-releases, managed from this repository; see [deployment](../docs/deployment.md).
-
-## Existing Linux Node
-
-Do this only on the explicitly selected node, with Python 3.11+, containerd and
-the bundle available there. For kind, the node is the node container, not the VM's
-host containerd. Do not run the installer on the VM host and assume it changed kind.
-
-```sh
-make -C platform runtime ARGS='node-plan --bundle /path/to/runtime-arm64 --config /etc/containerd/config.toml --output /path/to/private-plan --node TARGET_HOSTNAME_LABEL'
-```
-
-`node-plan` is non-mutating: inspect `candidate.toml`, `before.toml`, `plan.json`
-and `runtimeclass.json`. It parses TOML and proves that only the new handler is
-added; the default runtime is unchanged. Config versions 2 and 3 are supported.
-Configs using `imports`, symlink configs or an existing `runsc-xsphere` handler
-require a separate operator review and are deliberately refused by this initial
-guarded installer. Plans contain private node configuration: never commit them.
-
-After reviewing the diff, confirming the bundle architecture and reserving a node
-maintenance window, run on that same node as root:
-
-```sh
-make -C platform runtime ARGS='node-install --plan /path/to/private-plan --ack-node-change'
-```
-
-This installs into `/opt/xsphere/gvisor/<version-architecture-shimhash>/`, checks
-the candidate with the node's `containerd config dump`, and atomically replaces
-the unchanged original config. It does **not** restart services. The installer
-also refuses PAC-enabled ARM64 CPUs for this restore profile; it never changes
-VM CPU settings. Existing `runc`, `gvisor`, `gvisor-l2` and `runsc-l2` are untouched.
-
-Activation is a separate operator step: confirm node service management and running
-workloads, restart **only the selected node's containerd**, verify CRI RuntimeReady
-and NetworkReady, then dry-run/create the generated RuntimeClass using an explicit
-kubectl context. For the new kind path, the handler is configured during cluster
-creation; use `runtimeclass-render` for the RuntimeClass with name `gvisor-xsphere`, handler
-`runsc-xsphere` and `scheduling.nodeSelector.kubernetes.io/hostname` set to that node's
-hostname label. Keep it unavailable to untrusted Pod authors.
-
-If activation fails, keep scheduling on the previous runtime. After ensuring no
-workloads need the new handler, restore the config with:
-
-```sh
-make -C platform runtime ARGS='node-rollback --plan /path/to/private-plan --ack-node-change'
-```
-
-Rollback refuses to overwrite later operator edits. It restores only the original
-configuration; binaries, checkpoint directories and PVCs are retained. Restarting
-containerd and removing an unused RuntimeClass are explicit operator decisions.
-Do not delete runtime files while existing shims or recoverable snapshots need them.
-
-## Compatibility Record
-
-[gvisor.lock.json](gvisor.lock.json) distinguishes the historically tested
-`release-20260817.0` binaries from the newer rebased source branch. The latter has
-build/unit-test evidence only, not a new Pod end-to-end result. Digests are copied
-from existing verification records; this import has not re-read installed binaries.
-
-The minimal change is in `containerd-shim-runsc-v1`, which accepts the host image
-path annotation and connects Pod creation to `runsc restore`. The historical
-`runsc` binary itself was the official release. A RuntimeClass such as `gvisor-l2`
-selects a containerd handler such as `runsc-l2`; these are configuration names,
-not additional runtime implementations or CPU architectures.
-
-The product chart still does not create RuntimeClasses or replace node binaries;
-the runtime CLI is the separately acknowledged node operation. The tracked
-[shim archive](../../_demo/gvisor-cr/restore-shim.md) provides source/build context.
-
-Historical ARM verification required an ARM64 Linux VM with PAC disabled at CPU
-configuration time. That reduces a VM security feature and is not the same as
-fixing PAC in gVisor. Do not change production VM CPU settings through application
-Helm values. Restrict initial use to the tested same-node, compatible-build setup;
-retest a new runtime base or CPU feature configuration before promoting it.
-
-The handler/config layout follows the [gVisor containerd guide](https://gvisor.dev/docs/user_guide/containerd/quick_start/)
-and [containerd config version documentation](https://github.com/containerd/containerd/blob/main/docs/cri/config.md).
+Artifacts contain sensitive process memory. Restrict host-path annotations to
+trusted workloads. The [lifecycle guide](../docs/lifecycle.md) explains quiescing,
+artifact completion and recovery failure handling. Current sandbox-api pause/resume
+preserves PVC data, **not process memory**; node setup alone does not change that.
