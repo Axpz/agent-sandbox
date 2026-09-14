@@ -1,4 +1,4 @@
-# Private, single-node integration example, not a production configuration.
+# Private integration example, not a production configuration.
 # Build/load the API image; load a compatible Router image or replace its value.
 development:
   allowUnauthenticated: true

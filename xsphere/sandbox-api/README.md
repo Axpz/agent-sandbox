@@ -48,7 +48,7 @@ Wire fields retain their SDK casing, including `sandboxID`, `templateID` and
 The implementation defaults `autoPause` to true and create/resume JSON timeout to
 7200 seconds. Without checkpoint configuration this remains the existing PVC
 lifecycle. The opt-in memory lifecycle is described in
-[lifecycle](../docs/lifecycle.md); it is deployed in the private single-node
+[lifecycle](../docs/lifecycle.md); it is deployed in the private
 installation. The normal memory path has been verified through the deployed business
 Gateway/SDK; full chat/Pi session acceptance remains pending. Existing HTTP routes
 and SDK fields are unchanged.

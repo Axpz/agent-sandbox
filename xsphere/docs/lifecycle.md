@@ -41,7 +41,7 @@ Pod available during failed resume is not a guarantee this flow can make.
 ## Opt-In API: Save Then Stop
 
 The opt-in implementation under `sandbox-api/src/checkpoint/` is deployed in a
-private, single-node ARM64 kind installation. An isolated API exercise completed
+private ARM64 kind installation. An isolated API exercise completed
 checkpoint, suspension and restoration to a Ready Pod. The existing business API
 and template have since been upgraded in place; Codesphere and SDK calls are
 unchanged. A subsequent exercise through the deployed Codesphere Gateway/SDK

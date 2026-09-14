@@ -11,7 +11,7 @@ component. Follow the repository-root AGENTS.md as well as these constraints.
 - Deployment is opt-in. Do not change a cluster, replace node runtimes, create a
   VM, or rotate/delete PVCs as part of a documentation or source import task.
 - The default API lifecycle preserves PVC data through Pod recreation. Opt-in
-  gVisor memory pause/resume is integrated for the private single-node baseline;
+  gVisor memory pause/resume is integrated for the private baseline;
   see `docs/lifecycle.md` for prerequisites, verified scope and failure limits.
 - Unauthenticated development deployment must be explicitly acknowledged. Do not
   remove this guard to imply production readiness. Do not expose the stack publicly.

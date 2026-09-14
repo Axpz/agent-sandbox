@@ -62,7 +62,7 @@ tests already-available API and Nginx images without cluster access or public po
 - The API's default pause/resume preserves PVC data and recreates the Pod. The
   opt-in memory lifecycle and separately tested manual runtime workflow are
   distinguished in [lifecycle](docs/lifecycle.md). The API save/stop path is deployed
-  in the private single-node installation. Its normal memory path has been verified
+  in the private installation. Its normal memory path has been verified
   through the deployed business Gateway/SDK; chat/Pi session acceptance remains pending.
 - API-key enforcement and end-to-end data-plane authorization are not integrated.
   The chart refuses to render without explicit private-development opt-in. This

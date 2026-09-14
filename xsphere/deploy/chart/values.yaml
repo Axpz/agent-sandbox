@@ -12,7 +12,7 @@ api:
   pullPolicy: IfNotPresent
   envdVersion: "0.6.9"
   warmPool: codesphere-warmpool
-  # Opt-in, single-node memory lifecycle. Paths refer to the Kubernetes node,
+  # Opt-in memory lifecycle. Paths refer to the Kubernetes node,
   # not its VM host. See xsphere/docs/lifecycle.md before enabling.
   checkpoint: null
   # Requires Prometheus Operator. Match labels to its serviceMonitorSelector.
