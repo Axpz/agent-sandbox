@@ -10,8 +10,9 @@ component. Follow the repository-root AGENTS.md as well as these constraints.
   source remains in the repository root; do not copy it here or replace its tooling.
 - Deployment is opt-in. Do not change a cluster, replace node runtimes, create a
   VM, or rotate/delete PVCs as part of a documentation or source import task.
-- The API currently implements PVC-preserving Pod recreation, NOT memory restore.
-  Do not describe it as checkpoint-based pause/resume until it is integrated.
+- The default API lifecycle preserves PVC data through Pod recreation. Opt-in
+  gVisor memory pause/resume is integrated for the private single-node baseline;
+  see `docs/lifecycle.md` for prerequisites, verified scope and failure limits.
 - Unauthenticated development deployment must be explicitly acknowledged. Do not
   remove this guard to imply production readiness. Do not expose the stack publicly.
 - `runtime/` is a documentation-only entry for the external `Axpz/gvisor` repository.

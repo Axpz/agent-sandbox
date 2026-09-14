@@ -1,4 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
+import { MemoryConflict } from './checkpoint/model'
 import {
   connectSandbox,
   createSandbox,
@@ -11,6 +12,7 @@ import {
 } from './contract/routes'
 import * as backend from './k8s/backend'
 import { logger } from './logger'
+import { observeLifecycleRequest } from './metrics'
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
@@ -20,12 +22,11 @@ export const app = new OpenAPIHono()
 
 // Structured request logging via pino.
 app.use('*', async (c, next) => {
-  const start = Date.now()
+  const start = performance.now()
   await next()
-  logger.info(
-    { method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - start },
-    'request',
-  )
+  const ms = performance.now() - start
+  observeLifecycleRequest(c.req.method, c.req.path, c.res.status, ms / 1000)
+  logger.info({ method: c.req.method, path: c.req.path, status: c.res.status, ms }, 'request')
 })
 
 app.get('/health', (c) => c.json({ status: 'ok' }))
@@ -119,6 +120,7 @@ app.openapi(resumeSandbox, async (c) => {
 
 // Any uncaught error → e2b-style {code,message} envelope.
 app.onError((err, c) => {
+  if (err instanceof MemoryConflict) return c.json({ code: 409, message: err.message }, 409)
   logger.error({ err: errMsg(err), method: c.req.method, path: c.req.path }, 'unhandled error')
   return c.json({ code: 500, message: errMsg(err) }, 500)
 })

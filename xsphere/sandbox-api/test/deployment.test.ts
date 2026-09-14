@@ -4,6 +4,10 @@ import { parseAllDocuments } from 'yaml'
 
 const chart = resolve(import.meta.dir, '../../deploy/chart')
 const devValues = resolve(import.meta.dir, '../../deploy/values-dev.yaml')
+const monitoringDashboard = resolve(
+  import.meta.dir,
+  '../../deploy/monitoring/agent-sandbox-startup.json',
+)
 
 function render(overrides: string[] = [], development = true) {
   return Bun.spawnSync(
@@ -31,6 +35,21 @@ function resources(overrides: string[] = []) {
 }
 
 describe('private development chart', () => {
+  test('metrics use a separate internal port and ServiceMonitor is opt-in', () => {
+    expect(resources().some((obj) => obj.kind === 'ServiceMonitor')).toBe(false)
+    const objects = resources(['--set', 'api.serviceMonitor.enabled=true'])
+    const monitor = objects.find((obj) => obj.kind === 'ServiceMonitor')
+    expect(monitor.spec.endpoints).toEqual([{ port: 'metrics', path: '/metrics', interval: '15s' }])
+    const service = objects.find(
+      (obj) => obj.kind === 'Service' && obj.metadata.name === 'sandbox-api',
+    )
+    expect(service.spec.type).toBe('ClusterIP')
+    expect(service.spec.ports).toContainEqual({
+      name: 'metrics',
+      port: 9090,
+      targetPort: 'metrics',
+    })
+  })
   test('the unified entry renders the existing controller chart with extensions', () => {
     const result = Bun.spawnSync(
       [
@@ -152,5 +171,78 @@ describe('private development chart', () => {
     expect(render(['--set-string', 'edge.frontend.upstream=http://bad;include']).exitCode).not.toBe(
       0,
     )
+  })
+})
+
+describe('monitoring dashboard', () => {
+  test('lifecycle panels keep API namespace and time-window semantics', async () => {
+    const dashboard = await Bun.file(monitoringDashboard).json()
+    const panels = dashboard.panels.filter((panel: { id: number }) =>
+      [16, 17, 18, 19, 20].includes(panel.id),
+    )
+    expect(panels).toHaveLength(5)
+    for (const panel of panels) {
+      for (const target of panel.targets) {
+        expect(target.expr).toContain('sandbox_api_lifecycle_request_duration_seconds_')
+        expect(target.expr).toContain('namespace="$resource_namespace"')
+        expect(target.expr).toContain('[$__range]')
+        expect(target.expr).not.toContain('$template')
+      }
+    }
+  })
+  test('keeps the existing URL and measures startup over the selected time window', async () => {
+    const dashboard = await Bun.file(monitoringDashboard).json()
+    expect(dashboard.uid).toBe('agent-sandbox-startup')
+    expect(dashboard.id).toBeNull()
+    expect(dashboard.version).toBe(0)
+    for (const panel of dashboard.panels) {
+      if (![1, 2, 3].includes(panel.id)) continue
+      for (const target of panel.targets) {
+        expect(target.instant).toBe(true)
+        expect(target.expr).toContain('increase(')
+        expect(target.expr).toContain('[$__range]')
+      }
+    }
+  })
+
+  test('counts only Sandbox Pod roots and gives resource queries their own namespace filter', async () => {
+    const dashboard = await Bun.file(monitoringDashboard).json()
+    const namespace = dashboard.templating.list.find(
+      (variable: { name: string }) => variable.name === 'resource_namespace',
+    )
+    expect(namespace.multi).toBe(false)
+    expect(namespace.includeAll).toBe(false)
+    let resourcePanels = 0
+    for (const panel of dashboard.panels) {
+      if (![9, 10, 11, 13, 14].includes(panel.id)) continue
+      resourcePanels++
+      for (const target of panel.targets) {
+        for (const matcher of ['container=""', 'image=""', 'name=""']) {
+          expect(target.expr).toContain(matcher)
+        }
+        expect(target.expr).toContain('namespace="$resource_namespace"')
+        expect(target.expr).toContain('kube_pod_owner{')
+        expect(target.expr).toContain('owner_kind="Sandbox"')
+        expect(target.expr).toContain('owner_is_controller="true"')
+        expect(target.expr).not.toContain('container="runtime"')
+        expect(target.expr).not.toContain('$template')
+      }
+    }
+    expect(resourcePanels).toBe(5)
+  })
+
+  test('preserves heatmap time buckets and leaves missing resource observations as gaps', async () => {
+    const dashboard = await Bun.file(monitoringDashboard).json()
+    for (const panel of dashboard.panels) {
+      if (panel.type === 'heatmap') {
+        // Dropping zero timestamps can leave a single point with no heatmap cell width.
+        expect(panel.targets[0].expr).toBe(
+          'sum by (le) (increase(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type="warm", sandbox_template=~"$template"}[$__rate_interval])) and on () (sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type="warm", sandbox_template=~"$template"}[$__range] @ end())) > 0)',
+        )
+        expect(panel.options.filterValues.le).toBeGreaterThanOrEqual(0)
+      }
+      if (panel.type !== 'timeseries') continue
+      expect(panel.fieldConfig.defaults.custom.spanNulls).toBe(false)
+    }
   })
 })

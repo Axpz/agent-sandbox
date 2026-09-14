@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { MEMORY_LABEL, MEMORY_METADATA_KEY, MemoryConflict } from '../checkpoint/model'
 import { config, warmPoolFor } from '../config'
 import { logger } from '../logger'
 import {
@@ -148,7 +149,13 @@ async function getBoundSandbox(id: string): Promise<BoundSandbox | null> {
   }
 }
 
-function detailFromBound(id: string, bound: BoundSandbox): ListedSandboxResult {
+function memoryManaged(bound: BoundSandbox): boolean {
+  return (
+    (bound.claim.metadata as { labels?: Record<string, string> }).labels?.[MEMORY_LABEL] === 'true'
+  )
+}
+
+async function detailFromBound(id: string, bound: BoundSandbox): Promise<ListedSandboxResult> {
   const claimMeta = (bound.claim.metadata ?? {}) as {
     creationTimestamp?: string
     annotations?: Record<string, string>
@@ -160,18 +167,24 @@ function detailFromBound(id: string, bound: BoundSandbox): ListedSandboxResult {
   for (const [key, value] of Object.entries(annos)) {
     if (key.startsWith(ANNO_META_PREFIX)) metadata[key.slice(ANNO_META_PREFIX.length)] = value
   }
+  delete metadata[MEMORY_METADATA_KEY]
+  const memory = memoryManaged(bound)
+    ? await (await import('../checkpoint/lifecycle')).memoryDetail(bound.claimName)
+    : null
+  if (memory) metadata[MEMORY_METADATA_KEY] = 'memory'
 
   const startedAt = claimMeta.creationTimestamp ?? new Date().toISOString()
   return {
     clientID: MANAGED_BY,
     cpuCount: config.defaultCpuCount,
     diskSizeMB: config.defaultDiskMB,
-    endAt: sandboxSpec.shutdownTime ?? claimSpec.lifecycle?.shutdownTime ?? startedAt,
+    endAt:
+      memory?.endAt ?? sandboxSpec.shutdownTime ?? claimSpec.lifecycle?.shutdownTime ?? startedAt,
     envdVersion: config.envdVersion,
     memoryMB: config.defaultMemoryMB,
     sandboxID: id,
     startedAt,
-    state: sandboxState(bound.sandbox),
+    state: memory?.state ?? sandboxState(bound.sandbox),
     templateID: annos[ANNO_TEMPLATE] ?? 'base',
     ...(Object.keys(metadata).length ? { metadata } : {}),
   }
@@ -293,6 +306,9 @@ export async function createSandbox(input: CreateInput): Promise<SandboxResult> 
 
   const annotations: Record<string, string> = { [ANNO_TEMPLATE]: input.templateID }
   for (const [k, v] of Object.entries(input.metadata ?? {})) {
+    if (config.checkpoint && (k.startsWith('dev.gvisor.internal.') || k === MEMORY_METADATA_KEY)) {
+      throw new MemoryConflict('runtime checkpoint metadata is managed by sandbox-api')
+    }
     annotations[`${ANNO_META_PREFIX}${k}`] = v
   }
 
@@ -304,22 +320,34 @@ export async function createSandbox(input: CreateInput): Promise<SandboxResult> 
     metadata: {
       name: claimName,
       namespace: config.namespace,
-      labels: { 'app.kubernetes.io/managed-by': MANAGED_BY },
+      labels: {
+        'app.kubernetes.io/managed-by': MANAGED_BY,
+        ...(config.checkpoint ? { [MEMORY_LABEL]: 'true' } : {}),
+      },
       annotations,
     },
     spec: {
       warmPoolRef: { name: warmPoolFor(input.templateID) },
       ...(env.length ? { env } : {}),
       ...(hasMeta ? { additionalPodMetadata: { annotations: input.metadata } } : {}),
-      ...(input.autoPause
+      ...(input.autoPause || config.checkpoint
         ? {}
         : { lifecycle: { shutdownTime: deadline, shutdownPolicy: 'Retain' } }),
     },
   }
 
+  if (config.checkpoint) {
+    await (await import('../checkpoint/lifecycle')).prepareMemory(
+      claimName,
+      deadline,
+      input.autoPause,
+    )
+  }
   await createClaimCR(claim)
   const sandboxName = await waitForClaimBound(claimName)
-  if (input.autoPause) await patchSandboxLifecycle(sandboxName, deadline)
+  if (config.checkpoint) {
+    await (await import('../checkpoint/lifecycle')).initializeMemory(claimName)
+  } else if (input.autoPause) await patchSandboxLifecycle(sandboxName, deadline)
   logger.info(
     { claimName, sandboxID: sandboxName, templateID: input.templateID },
     'sandbox created',
@@ -352,7 +380,7 @@ export async function getSandbox(id: string): Promise<SandboxDetailResult | null
   const bound = await getBoundSandbox(id)
   if (!bound) return null
   return {
-    ...detailFromBound(id, bound),
+    ...(await detailFromBound(id, bound)),
     domain: config.domain,
     envdAccessToken: config.envdAccessToken,
   }
@@ -415,6 +443,13 @@ export async function setSandboxTimeout(
 ): Promise<OperationResult> {
   const bound = await getBoundSandbox(id)
   if (!bound) return { status: 'not-found' }
+  if (memoryManaged(bound)) {
+    const memory = await import('../checkpoint/lifecycle')
+    if ((await memory.memoryDetail(bound.claimName)).state === 'paused')
+      return { status: 'conflict' }
+    await memory.memoryTimeout(bound.claimName, timeoutSeconds, false)
+    return { status: 'ok', value: undefined }
+  }
   if (sandboxState(bound.sandbox) === 'paused') return { status: 'conflict' }
 
   const durationSeconds = Math.max(timeoutSeconds, 0)
@@ -434,6 +469,17 @@ export async function setSandboxTimeout(
 export async function connectSandbox(id: string, timeoutSeconds: number): Promise<ConnectResult> {
   const bound = await getBoundSandbox(id)
   if (!bound) return { status: 'not-found' }
+  if (memoryManaged(bound)) {
+    const memory = await import('../checkpoint/lifecycle')
+    const detail = await memory.memoryDetail(bound.claimName)
+    if (detail.state === 'paused')
+      await memory.transition(bound.claimName, 'resume', timeoutSeconds)
+    else await memory.memoryTimeout(bound.claimName, timeoutSeconds, true)
+    return {
+      status: detail.state === 'paused' ? 'resumed' : 'running',
+      value: sandboxResultFromBound(id, bound),
+    }
+  }
 
   await extendSandboxTimeout(id, bound, timeoutSeconds)
   if (sandboxState(bound.sandbox) === 'running') {
@@ -453,6 +499,8 @@ export async function connectSandbox(id: string, timeoutSeconds: number): Promis
 export async function killSandbox(id: string): Promise<boolean> {
   const bound = await getBoundSandbox(id)
   if (!bound) return false
+  if (memoryManaged(bound))
+    await (await import('../checkpoint/lifecycle')).memoryCanDelete(bound.claimName)
 
   try {
     await deleteClaimCR(bound.claimName)
@@ -467,6 +515,13 @@ export async function killSandbox(id: string): Promise<boolean> {
 export async function pauseSandbox(id: string): Promise<OperationResult> {
   const bound = await getBoundSandbox(id)
   if (!bound) return { status: 'not-found' }
+  if (memoryManaged(bound)) {
+    const memory = await import('../checkpoint/lifecycle')
+    const detail = await memory.memoryDetail(bound.claimName)
+    if (detail.state === 'paused' && !detail.busy) return { status: 'conflict' }
+    await memory.transition(bound.claimName, 'pause')
+    return { status: 'ok', value: undefined }
+  }
   if (sandboxState(bound.sandbox) === 'paused') return { status: 'conflict' }
 
   await patchSandboxOperatingMode(id, 'Suspended')
@@ -483,6 +538,13 @@ export async function resumeSandbox(
 ): Promise<OperationResult<SandboxResult>> {
   const bound = await getBoundSandbox(id)
   if (!bound) return { status: 'not-found' }
+  if (memoryManaged(bound)) {
+    const memory = await import('../checkpoint/lifecycle')
+    const detail = await memory.memoryDetail(bound.claimName)
+    if (detail.state === 'running' && !detail.busy) return { status: 'conflict' }
+    await memory.transition(bound.claimName, 'resume', timeoutSeconds)
+    return { status: 'ok', value: sandboxResultFromBound(id, bound) }
+  }
   if (sandboxState(bound.sandbox) === 'running') return { status: 'conflict' }
 
   const durationSeconds = Math.max(timeoutSeconds, 0)

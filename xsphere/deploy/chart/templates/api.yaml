@@ -19,6 +19,17 @@ rules:
   - apiGroups: [agents.x-k8s.io]
     resources: [sandboxes]
     verbs: [get, list, watch, create, update, patch, delete]
+  {{- if .Values.api.checkpoint }}
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, list, create, update, delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, create, delete]
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -44,6 +55,10 @@ metadata:
     {{- include "xsphere.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  {{- if .Values.api.checkpoint }}
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: sandbox-api
@@ -66,15 +81,24 @@ spec:
               value: {{ .Release.Namespace | quote }}
             - name: AGENTSPHERE_WARMPOOL
               value: {{ .Values.api.warmPool | quote }}
+            {{- if .Values.api.checkpoint }}
+            - name: AGENTSPHERE_CHECKPOINT_CONFIG
+              value: {{ toJson .Values.api.checkpoint | quote }}
+            {{- end }}
             - name: AGENTSPHERE_DOMAIN
               value: {{ .Values.domain | quote }}
             - name: AGENTSPHERE_ENVD_VERSION
               value: {{ .Values.api.envdVersion | quote }}
             - name: AGENTSPHERE_K8S_SKIP_TLS_VERIFY
               value: {{ .Values.development.skipKubernetesTLSVerify | quote }}
+            # Bun needs the in-cluster CA in its own TLS trust store.
+            - name: NODE_EXTRA_CA_CERTS
+              value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
           ports:
             - name: http
               containerPort: 3000
+            - name: metrics
+              containerPort: 9090
           readinessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 3
@@ -106,3 +130,36 @@ spec:
     - name: http
       port: 80
       targetPort: http
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+{{- if .Values.api.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "xsphere.labels" . | nindent 4 }}
+    {{- with .Values.api.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sandbox-api
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+{{- end }}
+{{- if .Values.api.checkpoint }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sandbox-checkpoint-worker
+  namespace: {{ .Release.Namespace }}
+automountServiceAccountToken: false
+{{- end }}

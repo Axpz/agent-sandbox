@@ -33,6 +33,10 @@ trusted kubeconfigs; they can include credential-execution plugins. See
 `AGENTSPHERE_K8S_SKIP_TLS_VERIFY` stays false by default. Its legacy development
 escape hatch disables process-wide certificate checks; never use it in production.
 
+Prometheus request metrics use a separate internal listener on port 9090
+(`METRICS_PORT`), not the business API port. Keep it private. See
+[monitoring](../deploy/monitoring/) for scraping and pause/resume measurement boundaries.
+
 ## Compatibility
 
 The existing contract remains: create, get, list, delete, timeout, pause, resume and
@@ -42,8 +46,12 @@ Wire fields retain their SDK casing, including `sandboxID`, `templateID` and
 `sandbox-api/*` annotations. Clients continue connecting to Service `sandbox-api`.
 
 The implementation defaults `autoPause` to true and create/resume JSON timeout to
-7200 seconds. This is the existing PVC lifecycle, not memory checkpointing. Do not
-use these leases to manage a memory-checkpoint Sandbox until coordination is integrated.
+7200 seconds. Without checkpoint configuration this remains the existing PVC
+lifecycle. The opt-in memory lifecycle is described in
+[lifecycle](../docs/lifecycle.md); it is deployed in the private single-node
+installation. The normal memory path has been verified through the deployed business
+Gateway/SDK; full chat/Pi session acceptance remains pending. Existing HTTP routes
+and SDK fields are unchanged.
 
 ## Known Gaps
 
@@ -54,8 +62,8 @@ use these leases to manage a memory-checkpoint Sandbox until coordination is int
 - Client metadata currently propagates to Pod annotations. Only trusted clients
   may use this baseline; privileged runtime annotations need an allowlist before
   multi-tenant access. `allow_internet_access` is not enforced by this API.
-- There is no durable checkpoint job, restore preflight, artifact retention policy,
-  request idempotency key or per-tenant authorization. A timed-out create may still
+- Historical artifact deletion, request idempotency keys and per-tenant
+  authorization are not implemented. A timed-out create may still
   finish in Kubernetes; do not blindly retry as though nothing was created.
 - Mock tests confirm API behavior and failure handling, not real controller cleanup,
   PVC retention on deletion, network continuity or memory restoration.

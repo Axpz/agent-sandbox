@@ -9,7 +9,7 @@ RUN bun install --frozen-lockfile --production
 COPY src ./src
 
 ENV NODE_ENV=production
-EXPOSE 3000
+EXPOSE 3000 9090
 
 USER bun
 CMD ["bun", "run", "src/index.ts"]

@@ -1,5 +1,6 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
+import { runtimeConfigSchema } from './checkpoint/model'
 
 // loadFromFile does not expand '~', so do it here.
 function expandHome(p: string): string {
@@ -9,6 +10,9 @@ function expandHome(p: string): string {
 }
 
 export const config = {
+  checkpoint: process.env.AGENTSPHERE_CHECKPOINT_CONFIG
+    ? runtimeConfigSchema.parse(JSON.parse(process.env.AGENTSPHERE_CHECKPOINT_CONFIG))
+    : null,
   // --- k8s access ---
   kubeconfig: process.env.AGENTSPHERE_KUBECONFIG
     ? expandHome(process.env.AGENTSPHERE_KUBECONFIG)

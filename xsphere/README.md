@@ -48,6 +48,9 @@ and leaves existing Templates/WarmPools untouched. See [deployment](docs/deploym
 before installing anything. Put environment-specific values under `xsphere/local/`
 (gitignored), not in the shared defaults.
 
+The [monitoring dashboard](deploy/monitoring/) covers first startup, pause/resume
+requests and Pod resources, with separate measurement boundaries and filters.
+
 `controller-build`, `router-build`, `controller-image`, `router-image` and `images`
 reuse existing source and Dockerfiles through the same Make entry. The root image
 scanner skips `xsphere/`; the root Docker context excludes it so local configuration,
@@ -56,25 +59,26 @@ tests already-available API and Nginx images without cluster access or public po
 
 ## Current Boundary
 
-- The API's pause/resume preserves PVC data and recreates the Pod. It does **not**
-  invoke gVisor checkpoint/restore. The separately tested memory workflow is
-  documented in [lifecycle](docs/lifecycle.md).
+- The API's default pause/resume preserves PVC data and recreates the Pod. The
+  opt-in memory lifecycle and separately tested manual runtime workflow are
+  distinguished in [lifecycle](docs/lifecycle.md). The API save/stop path is deployed
+  in the private single-node installation. Its normal memory path has been verified
+  through the deployed business Gateway/SDK; chat/Pi session acceptance remains pending.
 - API-key enforcement and end-to-end data-plane authorization are not integrated.
   The chart refuses to render without explicit private-development opt-in. This
   acknowledgement is not an authentication or network-isolation mechanism.
 - One namespace, one configured pool and trusted clients are the supported baseline.
   `templateID` is currently descriptive, not a multi-template routing table.
 - No controller, node runtime or VM has been changed by this implementation work.
-  Existing clusters and the original source working tree remain unchanged.
+  The explicitly approved rollout updated the existing API and business template;
+  previously claimed Sandboxes retain their original configuration and PVCs.
 
 ## Next Increments
 
-1. Complete the pending image/build checks in the verification record, review an
-   environment values file and deploy into an isolated test namespace;
-   repeat SDK create/command/file/pause/resume/delete checks with the real image.
-2. Integrate checkpoint coordination into the lifecycle owner: quiesce, save,
-   verify artifact completion, then suspend; validate restore before resuming work.
-   Keep Router independent of checkpoint logic.
+1. After the completed Gateway/SDK memory check, jointly validate the actual chat/Pi
+   session workflow. Do not substitute a `kubectl exec` background
+   process for the business workload: gVisor kills exec-origin processes on restore.
+2. Keep Router and Codesphere unchanged; artifact retention is a later small increment.
 3. Before exposing to untrusted clients, finish tenant authorization, safe metadata
    handling, data-plane credentials, TLS and network policy. Pin published image
    digests and define artifact retention and supported runtime combinations.

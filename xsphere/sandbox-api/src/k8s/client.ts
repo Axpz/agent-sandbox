@@ -1,4 +1,4 @@
-import { CustomObjectsApi, KubeConfig } from '@kubernetes/client-node'
+import { BatchV1Api, CoreV1Api, CustomObjectsApi, KubeConfig } from '@kubernetes/client-node'
 import { config } from '../config'
 import { logger } from '../logger'
 
@@ -17,7 +17,7 @@ export const CLAIM_GVR = {
 
 export type JsonObject = Record<string, unknown>
 
-function makeApi(): CustomObjectsApi {
+function loadConfig(): KubeConfig {
   const kc = new KubeConfig()
   if (config.kubeconfig) {
     // An explicit file must fail closed, never select a different cluster.
@@ -51,10 +51,13 @@ function makeApi(): CustomObjectsApi {
     }
     logger.warn('k8s: TLS verification disabled (dev)')
   }
-  return kc.makeApiClient(CustomObjectsApi)
+  return kc
 }
 
-const api = makeApi()
+const kc = loadConfig()
+const api = kc.makeApiClient(CustomObjectsApi)
+export const coreApi = kc.makeApiClient(CoreV1Api)
+export const batchApi = kc.makeApiClient(BatchV1Api)
 
 // ApiException carries the HTTP status on `.code`; duck-type it so we don't
 // depend on the class being re-exported at the package root.
@@ -161,4 +164,32 @@ export async function patchSandboxOperatingMode(
       },
     ],
   })) as JsonObject
+}
+
+export async function patchClaimRestore(
+  name: string,
+  resourceVersion: string,
+  path: string,
+): Promise<void> {
+  const claim = await getClaimCR(name)
+  const spec = claim.spec as { additionalPodMetadata?: { annotations?: Record<string, string> } }
+  await api.patchNamespacedCustomObject({
+    ...CLAIM_GVR,
+    namespace: config.namespace,
+    name,
+    body: [
+      { op: 'test', path: '/metadata/resourceVersion', value: resourceVersion },
+      {
+        op: 'add',
+        path: '/spec/additionalPodMetadata',
+        value: {
+          ...spec.additionalPodMetadata,
+          annotations: {
+            ...spec.additionalPodMetadata?.annotations,
+            'dev.gvisor.internal.restore.host-image-path': path,
+          },
+        },
+      },
+    ],
+  })
 }
