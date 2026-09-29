@@ -67,11 +67,8 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 make -C xsphere controller-build router-bu
 ```
 
 The ARM64 Nginx layer stalled through both attempted registry routes. The AMD64
-image was downloaded successfully and explicitly selected for the syntax test:
-
-```sh
-EDGE_PLATFORM=linux/amd64 make -C xsphere smoke-images
-```
+image was downloaded successfully and explicitly selected for the syntax test.
+The temporary image-smoke helper used for this record was later removed.
 
 This validates Nginx configuration, not ARM64 Nginx startup or a full ARM cluster.
 The owned smoke containers were removed. No existing cluster, service or VM was changed.

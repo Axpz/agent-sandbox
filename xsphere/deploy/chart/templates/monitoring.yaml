@@ -1,0 +1,21 @@
+{{- if .Values.monitoring.dashboards.enabled }}
+{{- range $path, $_ := .Files.Glob "files/dashboards/*.json" }}
+{{- $name := base $path | trimSuffix ".json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sandbox-dashboard-{{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    # The Grafana sidecar discovers dashboards by this label across namespaces,
+    # so the ConfigMaps stay in the release namespace with everything else.
+    grafana_dashboard: "1"
+    {{- include "xsphere.labels" $ | nindent 4 }}
+  annotations:
+    grafana_folder: {{ $.Values.monitoring.dashboards.folder | quote }}
+data:
+  {{ $name }}.json: |
+    {{- $.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}

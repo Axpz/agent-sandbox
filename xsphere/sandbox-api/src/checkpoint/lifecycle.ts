@@ -18,6 +18,7 @@ import {
   MemoryConflict,
   type MemoryRecord,
   RESTORE_ANNOTATION,
+  RestoreAbandoned,
   recordSchema,
   type Source,
   sourceSchema,
@@ -223,14 +224,31 @@ async function advance(journal: Journal): Promise<void> {
       logger.info({ sandboxID: name }, 'memory sandbox paused')
       return
     }
+    if (op.stage === 'abandon') {
+      // Even a Ready Pod may not be a valid restore. Let the controller release
+      // it before clearing the operation so a later resume can retry safely.
+      await patchSandboxOperatingMode(name, 'Suspended')
+      if (await podFor(record)) return
+      throw new RestoreAbandoned(
+        'restore did not produce a usable Pod; checkpoint and PVC retained, no cold-start fallback',
+      )
+    }
     if (op.stage === 'verify') {
-      if (!record.checkpoint) throw new Error('no committed checkpoint; refusing cold start')
       if (
         (bound.sandbox.spec as { operatingMode: string }).operatingMode !== 'Suspended' ||
         (await podFor(record))
       ) {
-        throw new Error('restore requires the original Pod to be absent and Sandbox suspended')
+        // A live Pod cannot prove restore success or accept a new restore.
+        logger.warn(
+          { sandboxID: name },
+          'restore needs the Sandbox suspended with no Pod; releasing the Pod it found',
+        )
+        op.stage = 'abandon'
+        await persist(journal)
+        return
       }
+      if (!record.checkpoint)
+        throw new RestoreAbandoned('no committed checkpoint; refusing cold start')
       if (!(await poll({ action: 'verify', checkpoint: record.checkpoint })).done) return
       const spec = bound.sandbox.spec as {
         podTemplate: { metadata?: { annotations?: Record<string, string> }; spec: V1Pod['spec'] }
@@ -242,7 +260,7 @@ async function advance(journal: Journal): Promise<void> {
         spec.podTemplate.spec.restartPolicy !== 'Never' ||
         spec.podTemplate.spec.nodeSelector?.['kubernetes.io/hostname'] !== rt.nodeName
       ) {
-        throw new Error('restore template changed; refusing incompatible restore')
+        throw new RestoreAbandoned('restore template changed; refusing incompatible restore')
       }
       const claimSpec = bound.claim.spec as {
         additionalPodMetadata?: { annotations?: Record<string, string> }
@@ -268,10 +286,20 @@ async function advance(journal: Journal): Promise<void> {
       await patchSandboxOperatingMode(name, 'Running')
       const pod = await podFor(record)
       if (!pod || !podReady(pod)) {
-        if (Date.now() - Date.parse(op.startedAt) > config.createTimeoutMs) {
-          throw new Error(
-            'restored Pod is not Ready; checkpoint and PVC retained, no cold-start fallback',
-          )
+        // A restored Pod never restarts, so a terminal phase -- a failed
+        // startup probe, most of all -- is already the final answer. Sitting
+        // out the rest of the timeout would only delay a verdict kubelet has
+        // made, and it holds the sandbox undeletable while it waits.
+        const decided =
+          pod?.status?.phase === 'Failed' ||
+          pod?.status?.phase === 'Succeeded' ||
+          Date.now() - Date.parse(op.startedAt) > config.createTimeoutMs
+        if (decided) {
+          // Hand over to 'abandon', which releases the Pod before the failure
+          // is recorded. Failing straight out of here would keep 'start'
+          // re-entered against this same startedAt forever.
+          op.stage = 'abandon'
+          await persist(journal)
         }
         return
       }
@@ -280,7 +308,13 @@ async function advance(journal: Journal): Promise<void> {
         source.podUID === op.source.podUID ||
         pod.metadata?.annotations?.[RESTORE_ANNOTATION] !== record.checkpoint?.path
       ) {
-        throw new Error('new Pod does not reference the committed checkpoint')
+        logger.warn(
+          { sandboxID: name },
+          'new Pod does not reference the committed checkpoint; releasing the Pod',
+        )
+        op.stage = 'abandon'
+        await persist(journal)
+        return
       }
       record.state = 'running'
       record.deadline = new Date(
@@ -299,6 +333,15 @@ async function advance(journal: Journal): Promise<void> {
       if (op.stage === 'verify') delete record.operation
       await persist(journal)
     }
+    // Keeping the operation here would make the sandbox permanently
+    // un-resumable and un-deletable: transition() and memoryCanDelete() both
+    // refuse while one is in flight. Every throw reaching this leaves the
+    // Sandbox suspended with no Pod, so release it and keep the reason.
+    if (error instanceof RestoreAbandoned) {
+      record.error = error.message.slice(0, 2048)
+      delete record.operation
+      await persist(journal)
+    }
     throw error
   }
 }
@@ -306,6 +349,30 @@ async function advance(journal: Journal): Promise<void> {
 export async function memoryDetail(claimName: string) {
   const { record } = await readJournal(claimName)
   return { endAt: record.deadline, state: record.state, busy: Boolean(record.operation) }
+}
+
+export async function connect(claimName: string, timeoutSeconds: number) {
+  const deadline = Date.now() + runtime().timeoutSeconds * 3 * 1000 + config.createTimeoutMs
+  let wasPaused = false
+  while (true) {
+    try {
+      const detail = await memoryDetail(claimName)
+      wasPaused ||= detail.state === 'paused'
+      if (!detail.busy && detail.state === 'paused') {
+        await transition(claimName, 'resume', timeoutSeconds)
+        return 'resumed' as const
+      }
+      if (!detail.busy) {
+        await memoryTimeout(claimName, timeoutSeconds, true)
+        return wasPaused ? ('resumed' as const) : ('running' as const)
+      }
+    } catch (error) {
+      if (!(error instanceof MemoryConflict)) throw error
+    }
+    if (Date.now() > deadline)
+      throw new MemoryConflict('memory transition did not settle before connect timed out')
+    await sleep(config.createPollMs)
+  }
 }
 
 export async function initializeMemory(claimName: string): Promise<void> {

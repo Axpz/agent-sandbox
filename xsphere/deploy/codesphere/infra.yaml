@@ -1,0 +1,188 @@
+# Shared Postgres, Redis and MinIO services for a development cluster. Codesphere
+# uses its own Postgres database, Redis database and MinIO bucket; other
+# applications can use different logical resources on the same services.
+# Everything is single-replica and local-disk, so it is not durable.
+#
+# Apply the Secret from codesphere-env.example.yaml first; every workload here
+# reads its credentials from `infra-credentials` and stays Pending without it.
+#
+# The PersistentVolumeClaims use the cluster's default StorageClass. Add
+# `storageClassName:` to each volumeClaimTemplate if the default is not the one
+# you want, and mirror-prefix the images if the registries are unreachable.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infra
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: infra
+spec:
+  selector: {app: postgres}
+  ports:
+    - {name: postgres, port: 5432, targetPort: postgres}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: infra
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {fsGroup: 999}
+      containers:
+        - name: postgres
+          image: postgres:16.8
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: POSTGRES_DB, value: codesphere}
+            - {name: POSTGRES_USER, value: codesphere}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: infra-credentials, key: postgres-password}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          ports: [{name: postgres, containerPort: 5432}]
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+          readinessProbe:
+            exec: {command: [sh, -c, 'pg_isready -U codesphere -d codesphere']}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 2Gi}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 20Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: infra
+spec:
+  selector: {app: redis}
+  ports: [{name: redis, port: 6379, targetPort: redis}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: infra
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels: {app: redis}
+  template:
+    metadata:
+      labels: {app: redis}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {fsGroup: 999}
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          command: [sh, -ec]
+          args: ['exec redis-server --appendonly yes --appendfsync everysec --requirepass "$REDIS_PASSWORD"']
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom: {secretKeyRef: {name: infra-credentials, key: redis-password}}
+          ports: [{name: redis, containerPort: 6379}]
+          volumeMounts: [{name: data, mountPath: /data}]
+          readinessProbe:
+            tcpSocket: {port: redis}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 1Gi}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 10Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: infra
+spec:
+  selector: {app: minio}
+  ports: [{name: s3, port: 9000, targetPort: s3}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: infra
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels: {app: minio}
+  template:
+    metadata:
+      labels: {app: minio}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {fsGroup: 1000}
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+          imagePullPolicy: IfNotPresent
+          args: [server, /data]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: {secretKeyRef: {name: infra-credentials, key: minio-user}}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: infra-credentials, key: minio-password}}
+          ports: [{name: s3, containerPort: 9000}]
+          volumeMounts: [{name: data, mountPath: /data}]
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: s3}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 2Gi}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 30Gi}}
+---
+# Creates the bucket the application writes to. The name here must match
+# AWS_S3_BUCKET in the codesphere-env ConfigMap; a mismatch surfaces only when
+# the first upload fails, long after the deployment looks healthy.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: codesphere-storage-init
+  namespace: infra
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args: ['until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do sleep 3; done; mc mb --ignore-existing local/codesphere']
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: {secretKeyRef: {name: infra-credentials, key: minio-user}}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: infra-credentials, key: minio-password}}

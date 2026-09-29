@@ -470,13 +470,10 @@ export async function connectSandbox(id: string, timeoutSeconds: number): Promis
   const bound = await getBoundSandbox(id)
   if (!bound) return { status: 'not-found' }
   if (memoryManaged(bound)) {
-    const memory = await import('../checkpoint/lifecycle')
-    const detail = await memory.memoryDetail(bound.claimName)
-    if (detail.state === 'paused')
-      await memory.transition(bound.claimName, 'resume', timeoutSeconds)
-    else await memory.memoryTimeout(bound.claimName, timeoutSeconds, true)
+    const { connect } = await import('../checkpoint/lifecycle')
+    const status = await connect(bound.claimName, timeoutSeconds)
     return {
-      status: detail.state === 'paused' ? 'resumed' : 'running',
+      status,
       value: sandboxResultFromBound(id, bound),
     }
   }

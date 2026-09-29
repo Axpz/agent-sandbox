@@ -12,7 +12,7 @@ CONTROLLER_IMAGE ?= agent-sandbox-controller:xsphere-dev
 CONTROLLER_TAG ?= v0.5.4
 CONTROLLER_NAMESPACE ?= agent-sandbox-system
 
-.PHONY: help install lint typecheck test build check render image dev image-tools-check controller-build router-build controller-image router-image images controller-render smoke-images
+.PHONY: help install lint typecheck test build check render image dev image-tools-check controller-build router-build controller-image router-image images controller-render
 
 help:
 	@echo 'xsphere: install | check | build | render | image | dev'
@@ -67,6 +67,3 @@ images: image controller-image router-image
 
 controller-render:
 	@KUBECONFIG=/dev/null $(HELM) template agent-sandbox ../helm --namespace $(CONTROLLER_NAMESPACE) --set namespace.create=false --set namespace.name=$(CONTROLLER_NAMESPACE) --set image.tag=$(CONTROLLER_TAG) --set controller.extensions=true
-
-smoke-images:
-	cd sandbox-api && $(BUN) run dev/smoke-images.ts

@@ -27,14 +27,26 @@ router:
   image: ""
   pullPolicy: IfNotPresent
   clusterDomain: cluster.local
+  # Requires Prometheus Operator. Match labels to its serviceMonitorSelector.
+  serviceMonitor:
+    enabled: false
+    labels: {}
   resources:
     requests: {cpu: 100m, memory: 128Mi}
     limits: {cpu: "1", memory: 512Mi}
 
 edge:
   image: nginx:1.28.0-alpine
+  # Browser redirect for the private UI's /__preview_auth/auto entry, not auth.
+  previewCompatibility: false
   serviceType: ClusterIP
   nodePort: 30080
+  tls:
+    enabled: false
+    # Must already exist in the release namespace as a kubernetes.io/tls
+    # Secret; this chart wires it up but does not provision certificates.
+    secretName: sandbox-edge-tls
+    nodePort: 30443
   resources:
     requests: {cpu: 25m, memory: 32Mi}
     limits: {cpu: 250m, memory: 128Mi}
@@ -43,6 +55,9 @@ edge:
     enabled: false
     host: ""
     upstream: ""
+    # Optional base-path apps. Preserve the prefix; upstreams have no trailing /.
+    # paths: { /lite: "http://lite-sandbox-app.sandbox.svc.cluster.local:80" }
+    paths: {}
 
 # Leave off when reusing an existing Template/WarmPool. This chart does not
 # enable memory checkpoint annotations or provision node runtimes.
@@ -52,7 +67,26 @@ runtime:
   image: ""
   runtimeClassName: ""
   warmPoolReplicas: 0
+  # Bounds how long kubelet waits for envd's /health to answer before failing
+  # the container. The budget must stay under sandbox-api's createTimeoutMs
+  # (AGENTSPHERE_CREATE_TIMEOUT_MS, 120s): whichever is shorter decides, and
+  # kubelet is the only one of the two that can say why. 60s leaves headroom
+  # over a restore plus the runtime's own envd recovery hook. Raise both
+  # numbers together if larger checkpoints need longer, never this one alone.
+  startupProbe:
+    periodSeconds: 2
+    failureThreshold: 30
   workspace:
     storageClass: standard
     size: 10Gi
     mountPath: /workspace
+
+monitoring:
+  # Renders the dashboards under files/dashboards/ as ConfigMaps for a Grafana
+  # sidecar watching grafana_dashboard=1. It installs no Grafana and no
+  # exporters, and the dashboards expect a Prometheus datasource named
+  # `prometheus`. The folder needs the sidecar's folderAnnotation set to
+  # grafana_folder; without it the dashboards land in Grafana's root instead.
+  dashboards:
+    enabled: false
+    folder: xsphere

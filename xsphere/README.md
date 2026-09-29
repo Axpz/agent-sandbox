@@ -1,9 +1,13 @@
 # xsphere
 
-Private development integration, version 0.1. The long-lived `product/xsphere`
+Private development integration, version 0.2.0. The long-lived `product/xsphere`
 branch of `Axpz/agent-sandbox` is the single engineering portal: source, builds,
 runtime references, deployment, verification and records start here. It is not an upstream
 agent-sandbox release or a production-readiness claim.
+
+The Helm chart is the version source: bump `deploy/chart/Chart.yaml` for each
+xsphere release, keep `version` and `appVersion` aligned, and tag it
+`xsphere/vX.Y.Z`. The sandbox-api package is private and has no separate release.
 
 ## Naming and Ownership
 
@@ -13,7 +17,7 @@ agent-sandbox release or a production-readiness claim.
 | sandbox-api | E2B-compatible lifecycle API backed by Kubernetes resources | [sandbox-api/](sandbox-api/) |
 | agent-sandbox-controller | Reconcile Sandbox, Claim, Template and WarmPool | Existing repository-root code and [Helm chart](../helm/) |
 | sandbox-router | Forward requests to the selected Sandbox | Existing [Go Router](../sandbox-router/) |
-| sandbox-edge | Adapt SDK headers and wildcard hostnames to Router headers | [Deployment chart](deploy/chart/) |
+| sandbox-edge | Adapt SDK headers and wildcard hostnames to Router headers; ensure the target Sandbox is running (via sandbox-api `connect`) before forwarding | [Deployment chart](deploy/chart/) |
 | runsc + shim | Sandbox isolation and optional memory restore | External `Axpz/gvisor` source; [pinned version and integration notes](runtime/) |
 
 `agentsphere-gateway` was the old repository name. The process, package, ownership
@@ -48,14 +52,23 @@ and leaves existing Templates/WarmPools untouched. See [deployment](docs/deploym
 before installing anything. Put environment-specific values under `xsphere/local/`
 (gitignored), not in the shared defaults.
 
-The [monitoring dashboard](deploy/monitoring/) covers first startup, pause/resume
-requests and Pod resources, with separate measurement boundaries and filters.
+[deployment](docs/deployment.md) covers this chart alone. To reproduce the whole
+stack elsewhere — node prerequisites, controller, sandbox stack, an application
+with its backing services, monitoring and browser access — follow
+[bootstrap](docs/bootstrap.md), which also records the environment it was
+validated against and where that environment diverges from the committed files.
+
+Setting `monitoring.dashboards.enabled=true` renders the four dashboards under
+[deploy/chart/files/dashboards](deploy/chart/files/dashboards) as ConfigMaps for a
+Grafana sidecar: sandbox overview, single-sandbox drill-down, control plane, and
+snapshots with the warm pool. The chart installs no Grafana, Prometheus or
+exporters. [deploy/monitoring/](deploy/monitoring/) explains how to open them and
+documents each dashboard's measurement boundaries and known blind spots.
 
 `controller-build`, `router-build`, `controller-image`, `router-image` and `images`
 reuse existing source and Dockerfiles through the same Make entry. The root image
 scanner skips `xsphere/`; the root Docker context excludes it so local configuration,
-dependencies and build outputs do not enter upstream builds. `smoke-images`
-tests already-available API and Nginx images without cluster access or public ports.
+dependencies and build outputs do not enter upstream builds.
 
 ## Current Boundary
 
@@ -67,6 +80,11 @@ tests already-available API and Nginx images without cluster access or public po
 - API-key enforcement and end-to-end data-plane authorization are not integrated.
   The chart refuses to render without explicit private-development opt-in. This
   acknowledgement is not an authentication or network-isolation mechanism.
+- sandbox-edge transparently resumes a suspended target before forwarding, by
+  calling sandbox-api's existing `connect` route as an `auth_request` subrequest
+  on every proxied request. See [lifecycle](docs/lifecycle.md) for the mechanism
+  and its current limitations (no service credential yet; non-2xx/401/403
+  responses from `connect` collapse to a generic 502/500).
 - One namespace, one configured pool and trusted clients are the supported baseline.
   `templateID` is currently descriptive, not a multi-template routing table.
 - No controller, node runtime or VM has been changed by this implementation work.

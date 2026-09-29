@@ -1,0 +1,94 @@
+# kube-prometheus-stack values that make the xsphere dashboards work. Chart
+# version 89.2.2 (Prometheus Operator v0.93.1) is the one this was validated
+# against; see docs/bootstrap.md.
+#
+#   helm repo add prometheus-community \
+#     https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install kube-prometheus-stack \
+#     prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f <your copy of this file>
+#
+# This chart installs Grafana, Prometheus and the exporters. The xsphere chart
+# installs none of them — it only ships dashboard ConfigMaps and ServiceMonitors,
+# so this has to exist first or those objects are inert.
+#
+# Everything below is either required by the dashboards or a kind-specific
+# trim. Nothing here is site-specific; the commented-out blocks are the knobs a
+# restricted network or a non-default StorageClass needs.
+grafana:
+  grafana.ini:
+    plugins:
+      # Grafana's distroless images have a read-only plugin directory, where
+      # auto-updating the bundled Prometheus plugin fails at startup.
+      preinstall_auto_update: false
+  sidecar:
+    datasources:
+      # The dashboard JSON references this datasource by UID. Changing it means
+      # editing all four dashboards.
+      uid: prometheus
+    dashboards:
+      # Without these two the dashboards still load, but land in Grafana's root
+      # next to the stack's own ~23 dashboards instead of the `xsphere` folder.
+      # Enabling them does not move existing dashboards: the stack's own carry
+      # no grafana_folder annotation.
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+  persistence:
+    enabled: true
+    size: 5Gi
+    # storageClassName: standard
+
+  # Mirrors for a host that cannot reach Docker Hub. Grafana is the only
+  # subchart that pulls from it.
+  # image:
+  #   registry: docker.m.daocloud.io
+  # downloadDashboardsImage:
+  #   registry: docker.m.daocloud.io
+  # initChownData:
+  #   image:
+  #     registry: docker.m.daocloud.io
+
+# registry.k8s.io redirects to a regional Google registry that some networks
+# cannot reach.
+# kube-state-metrics:
+#   image:
+#     registry: k8s.m.daocloud.io
+
+prometheus:
+  prometheusSpec:
+    # Required. By default the stack only selects ServiceMonitors carrying its
+    # own release label, so the xsphere ServiceMonitors — rendered by a
+    # different chart — would never be scraped and every panel would be empty.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    # The control-plane dashboard's alert table reads ALERTS, which needs the
+    # controller chart's PrometheusRule to be selected the same way.
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 20Gi
+          # storageClassName: standard
+
+# kind does not expose these control-plane endpoints, so scraping them yields
+# permanently failing targets and a red scrape-health panel. Remove these four
+# on a cluster where they are reachable.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+# The dashboards display firing alerts but define none, and need no alerting
+# path of their own.
+alertmanager:
+  enabled: false

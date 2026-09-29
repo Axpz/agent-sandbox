@@ -1,0 +1,2436 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "首次创建和热池领取由控制器统计；pause/resume/connect 为 Sandbox API 请求指标；Pod 资源按 Sandbox 归属统计。三者测量边界不同，不可混算。控制面细节见「控制面」面板，快照与热池见「快照与热池」面板。",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 101,
+      "title": "流量",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "已就绪且未过期的 Sandbox 存量，不含热池待命实例。存量是瞬时值，与区间内的启动次数不可相加。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 102,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{ready_condition=\"true\", expired=\"false\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "当前运行中沙箱",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "所选时间范围内新建并首次就绪的 Sandbox 次数（估计值）。控制器统计的 Claim 到首次 Ready，不是 API 延迟，也不是内存恢复耗时。该指标族没有命名空间标签，同名模板会跨命名空间汇总。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 103,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "区间冷启动数",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "所选时间范围内从热池领取并首次就绪的次数（估计值）。控制器统计的 Claim 到首次 Ready，不是 API 延迟，也不是内存恢复耗时。该指标族没有命名空间标签，同名模板会跨命名空间汇总。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#d95926",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "id": 104,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type=\"warm\", sandbox_template=~\"$template\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "区间热池领取数",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "热池持有且已就绪的 Sandbox 数。池被抽空后新请求会退化成冷启动量级，所以这个数字长期为 0 时「热启动」并不快。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#2e9e6b",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 105,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{owned_by=\"SandboxWarmPool\", ready_condition=\"true\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "当前热池待命",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Sandbox API 的 resume 请求成功次数（估计值），统计已完成的 HTTP 请求，不含后台自动 pause 和未结束的请求。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#8b5cf6",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 106,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", operation=\"resume\", result=\"success\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "区间 resume 成功",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "connect 包含连接到本来就在运行的 Sandbox，因此与 resume 分开统计，两者不可相加。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#8b5cf6",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 107,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", operation=\"connect\", result=\"success\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "区间 connect 成功",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "按首次启动方式拆分的就绪存量。launch_type 是 Sandbox 的出生方式，一个冷启动出生的沙箱之后被 pause/resume 也仍然记为 cold。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cold"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warm"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "id": 108,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{ready_condition=\"true\", expired=\"false\", launch_type=\"cold\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "legendFormat": "cold",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{ready_condition=\"true\", expired=\"false\", launch_type=\"warm\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "legendFormat": "warm",
+          "refId": "B"
+        }
+      ],
+      "title": "运行中沙箱（按启动方式）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "只统计首次启动，不含 pause/resume 往返。最近没有创建请求时速率为 0，历史趋势仍可有数据。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "首次冷创建"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "首次热池领取"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "id": 109,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(agent_sandbox_claim_creation_total{launch_type=\"cold\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"}[$__rate_interval])) * 60",
+          "legendFormat": "首次冷创建",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(agent_sandbox_claim_creation_total{launch_type=\"warm\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"}[$__rate_interval])) * 60",
+          "legendFormat": "首次热池领取",
+          "refId": "B"
+        }
+      ],
+      "title": "首次创建 / 领取速率（次 / 分）",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 110,
+      "title": "错误",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "首次启动后 Pod 未就绪的比例，取自 agent_sandbox_claim_creation_total 的 pod_condition 标签。未就绪包含仍在启动中的实例，不等于启动失败。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#d9a326",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 15
+      },
+      "id": 111,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(increase(agent_sandbox_claim_creation_total{pod_condition=\"not_ready\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"}[$__range])) / (sum(increase(agent_sandbox_claim_creation_total{exported_namespace=~\"$ns\", sandbox_template=~\"$template\"}[$__range])) > 0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "启动未就绪占比",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "pause/resume/connect 请求中 5xx 的占比。4xx 记为客户端错误，不计入这里。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#c0392b",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 15
+      },
+      "id": 112,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"server_error\"}[$__range])) / (sum(increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\"}[$__range])) > 0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "API 服务端错误率",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "所选范围内 Sandbox 与 SandboxClaim 控制器返回错误的 reconcile 次数。controller-runtime 会重试，单次错误不等于用户可见故障。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#d9a326",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 15
+      },
+      "id": 113,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(controller_runtime_reconcile_errors_total{controller=~\"sandbox|sandboxclaim\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "控制器 reconcile 错误",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "已完成的 pause/resume/connect 请求速率，按结果分类：success 为 2xx，client_error 为 4xx，server_error 为 5xx。含重试。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "decimals": 2,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "success"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#2e9e6b",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "client_error"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d9a326",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "server_error"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#c0392b",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "id": 114,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"success\"}[$__rate_interval])) * 60",
+          "legendFormat": "success",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"client_error\"}[$__rate_interval])) * 60",
+          "legendFormat": "client_error",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"server_error\"}[$__rate_interval])) * 60",
+          "legendFormat": "server_error",
+          "refId": "C"
+        }
+      ],
+      "title": "API 请求结果分布（次 / 分）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "按操作维度展开的请求计数与成功请求平均耗时。计数在 API 重启后归零，Prometheus 的 increase 能处理观测到的重置，但首次抓取前、重启前最后一次抓取后的事件会漏掉。这是采样指标的呈现，不是精确审计日志。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "noValue": "窗口内无样本"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "成功"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "客户端错误"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "服务端错误"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "成功平均耗时"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "id": 115,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (operation) (increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"success\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "OK"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (operation) (increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"client_error\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "CLIENT"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (operation) (increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"server_error\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "SERVER"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (operation) (increase(sandbox_api_lifecycle_request_duration_seconds_sum{namespace=\"$ns\", result=\"success\"}[$__range])) / (sum by (operation) (increase(sandbox_api_lifecycle_request_duration_seconds_count{namespace=\"$ns\", result=\"success\"}[$__range])) > 0)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "AVG"
+        }
+      ],
+      "title": "API 请求结果（operation × 结果，次数为估计值）",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "operation",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Value #AVG": "成功平均耗时",
+              "Value #CLIENT": "客户端错误",
+              "Value #OK": "成功",
+              "Value #SERVER": "服务端错误",
+              "operation": "操作"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 116,
+      "title": "耗时",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "所选范围内冷启动耗时的算术平均。没有观测值时显示无样本，而不是 0 毫秒。控制器统计的 Claim 到首次 Ready，不是 API 延迟，也不是内存恢复耗时。该指标族没有命名空间标签，同名模板会跨命名空间汇总。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 26
+      },
+      "id": 117,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(agent_sandbox_claim_controller_startup_latency_ms_sum{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__range])) / (sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__range])) > 0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "冷启动均值",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "按桶插值的中位数。最小桶是 100ms，落在首桶内的观测只能给出桶上界。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 26
+      },
+      "id": 118,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le) (increase(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__range])))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "冷启动 P50",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "冷启动尾延迟。样本很少时分位数抖动大，应结合右侧趋势图一起看。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#8b5cf6",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 26
+      },
+      "id": 119,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__range])))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "冷启动 P95",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "从热池领取到首次就绪的平均耗时。这里只给均值和慢领取计数，不给分位数：直方图最小桶为 100ms，而正常领取远快于此，分位数会被首桶上界钉死，没有意义。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#d95926",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 26
+      },
+      "id": 120,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(agent_sandbox_claim_controller_startup_latency_ms_sum{launch_type=\"warm\", sandbox_template=~\"$template\"}[$__range])) / (sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type=\"warm\", sandbox_template=~\"$template\"}[$__range])) > 0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "热池领取均值",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "总领取次数减去落在 1000ms 桶及以下的次数。这是唯一可靠的热池退化信号：池被抽空时领取会退化到冷启动量级。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#d95926",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 26
+      },
+      "id": 121,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type=\"warm\", sandbox_template=~\"$template\"}[$__range])) - sum(increase(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type=\"warm\", le=~\"1000(\\\\.0)?\", sandbox_template=~\"$template\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "慢领取（> 1s）计数",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "节点上 /var/lib/gvisor-ckpt 分区的整体占用，含该分区上的所有文件，不只是当前存活沙箱的快照。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#8b5cf6",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 26
+      },
+      "id": 122,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * (1 - node_filesystem_avail_bytes{mountpoint=\"/var/lib/gvisor-ckpt\"} / node_filesystem_size_bytes{mountpoint=\"/var/lib/gvisor-ckpt\"})",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "快照盘已用",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "按 rate 区间计算的分位数趋势，与上方按整段范围计算的摘要值不必相等。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMax": 5000,
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P50"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P95"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#8b5cf6",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "id": 123,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__rate_interval])))",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type=\"cold\", sandbox_template=~\"$template\"}[$__rate_interval])))",
+          "legendFormat": "P95",
+          "refId": "B"
+        }
+      ],
+      "title": "冷启动耗时趋势（P50 / P95）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "热池领取只画均值，原因见「热池领取均值」面板说明。曲线抬升到秒级即为池水位不足。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMax": 5000,
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "均值"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "id": 124,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(agent_sandbox_claim_controller_startup_latency_ms_sum{launch_type=\"warm\", sandbox_template=~\"$template\"}[$__rate_interval])) / (sum(rate(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type=\"warm\", sandbox_template=~\"$template\"}[$__rate_interval])) > 0)",
+          "legendFormat": "均值",
+          "refId": "A"
+        }
+      ],
+      "title": "热池领取耗时趋势（均值）",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "id": 125,
+      "title": "存量与资源",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "只统计 Sandbox 拥有的 Pod 根 cgroup，不含快照 Job、API、Edge 与 Router。工作集不是进程堆大小，也不是快照大小。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "无沙箱 Pod",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 40
+      },
+      "id": 126,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(max by (pod) (container_memory_working_set_bytes{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"}))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "沙箱 Pod 总内存",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "只统计 Sandbox 拥有的 Pod 根 cgroup，不含快照 Job、API、Edge 与 Router。工作集不是进程堆大小，也不是快照大小。单位是核。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
+          },
+          "decimals": 3,
+          "mappings": [],
+          "noValue": "无沙箱 Pod",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 40
+      },
+      "id": 127,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}[$__rate_interval])) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"}))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "沙箱 Pod 总 CPU",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "只统计 Sandbox 拥有的 Pod 根 cgroup，不含快照 Job、API、Edge 与 Router。工作集不是进程堆大小，也不是快照大小。用来发现单个沙箱的内存离群点。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#8b5cf6",
+            "mode": "fixed"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "无沙箱 Pod",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 40
+      },
+      "id": 128,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(max by (pod) (container_memory_working_set_bytes{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"}))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "最大单沙箱 Pod 内存",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "未就绪且未过期包含挂起、启动中和失败的 Sandbox，不能当作「已暂停数」。热池持有与就绪状态是两个维度，会重叠，四条线不可相加。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "就绪"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "未就绪 / 未过期"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "已过期"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#8b5cf6",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "热池持有"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#2e9e6b",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "id": 129,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{ready_condition=\"true\", expired=\"false\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "legendFormat": "就绪",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{ready_condition=\"false\", expired=\"false\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "legendFormat": "未就绪 / 未过期",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{expired=\"true\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "legendFormat": "已过期",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(agent_sandboxes{owned_by=\"SandboxWarmPool\", exported_namespace=~\"$ns\", sandbox_template=~\"$template\"})",
+          "legendFormat": "热池持有",
+          "refId": "D"
+        }
+      ],
+      "title": "Sandbox 存量（按状态）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "按 Sandbox 归属过滤的 Pod 级 cgroup 用量：container、image、name 三个标签为空才是 Pod 根 cgroup。按 container=\"runtime\" 过滤会漏掉 gVisor，父子 cgroup 同时计入会重复计数。工作集不是进程堆大小，也不是快照大小；CPU 单位是核。读写字节是当前 Pod 的累计量，Pod 重建后归零，不代表磁盘占用；部分从快照恢复的 Pod 没有块设备计数，该列会为空——空值不能读作零 I/O。点击沙箱名可跳到单沙箱下钻面板。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "noValue": "当前命名空间下没有 Sandbox 拥有的 Pod"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "沙箱"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "打开单沙箱下钻",
+                    "url": "/d/xsphere-sandbox-details?var-ns=$ns&var-sandbox=${__value.raw}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存工作集"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU（核）"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "累计读写"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "存活时长"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 52
+      },
+      "id": 130,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (pod) (container_memory_working_set_bytes{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "MEM"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}[$__rate_interval])) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "CPU"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (pod) (container_fs_reads_bytes_total{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}) + sum by (pod) (container_fs_writes_bytes_total{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"})) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "IO"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "time() - (max by (pod) (kube_pod_created{namespace=\"$ns\"}) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"}))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "AGE"
+        }
+      ],
+      "title": "沙箱 Pod 资源（当前值）",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "pod",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Value #AGE": "存活时长",
+              "Value #CPU": "CPU（核）",
+              "Value #IO": "累计读写",
+              "Value #MEM": "内存工作集",
+              "pod": "沙箱"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "/var/lib/gvisor-ckpt 所在分区的已用与总容量。快照文件只在 pause 后保留，已用量上升不必然意味着存活沙箱增加。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "已用"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#8b5cf6",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "总容量"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#2e9e6b",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 52
+      },
+      "id": 131,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "node_filesystem_size_bytes{mountpoint=\"/var/lib/gvisor-ckpt\"} - node_filesystem_avail_bytes{mountpoint=\"/var/lib/gvisor-ckpt\"}",
+          "legendFormat": "已用",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "node_filesystem_size_bytes{mountpoint=\"/var/lib/gvisor-ckpt\"}",
+          "legendFormat": "总容量",
+          "refId": "B"
+        }
+      ],
+      "title": "快照盘用量趋势",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "总量看整体压力，峰值看是否被单个沙箱带高。要定位到具体沙箱，用上方表格里的链接进入单沙箱下钻面板——按 Pod 逐条画线在沙箱数量变化时无法稳定配色。从快照恢复的同名 Pod 会落在同一条线上，缺失的采样保留为断点，断点本身不能证明沙箱被挂起。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "showPoints": "always",
+            "spanNulls": false
+          },
+          "mappings": [],
+          "noValue": "窗口内无样本",
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "总量"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "单沙箱峰值"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#8b5cf6",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "id": 132,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(max by (pod) (container_memory_working_set_bytes{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"}))",
+          "legendFormat": "总量",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(max by (pod) (container_memory_working_set_bytes{namespace=\"$ns\", container=\"\", image=\"\", name=\"\", pod!=\"\"}) * on (pod) group_left() max by (pod) (kube_pod_owner{namespace=\"$ns\", owner_kind=\"Sandbox\", owner_is_controller=\"true\"}))",
+          "legendFormat": "单沙箱峰值",
+          "refId": "B"
+        }
+      ],
+      "title": "沙箱 Pod 内存趋势",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "agent-sandbox",
+    "xsphere"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "All"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(agent_sandbox_claim_controller_startup_latency_ms_count, sandbox_template)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "启动/存量模板",
+        "multi": true,
+        "name": "template",
+        "options": [],
+        "query": {
+          "query": "label_values(agent_sandbox_claim_controller_startup_latency_ms_count, sandbox_template)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "sandbox",
+          "value": "sandbox"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(kube_namespace_status_phase{phase=\"Active\"}, namespace)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "沙箱命名空间",
+        "multi": false,
+        "name": "ns",
+        "options": [],
+        "query": {
+          "query": "label_values(kube_namespace_status_phase{phase=\"Active\"}, namespace)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Agent Sandbox / 沙箱总览",
+  "uid": "xsphere-sandbox-overview",
+  "version": 0,
+  "weekStart": ""
+}

@@ -472,6 +472,48 @@ describe('memory lifecycle through the existing HTTP API', () => {
     expect(deleteClaim).not.toHaveBeenCalled()
   })
 
+  test('a restore that never becomes Ready is released, not left wedged', async () => {
+    const id = await createMemorySandbox()
+    expect((await request(`/sandboxes/${id}/pause`, 'POST')).status).toBe(204)
+    // Nothing brings a Pod back, so the restore runs out of time.
+    completeTransition = false
+    expect((await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })).status).toBe(500)
+    const record = recordSchema.parse(JSON.parse([...configMaps.values()][0].data?.record ?? ''))
+    // A retained operation used to leave the sandbox permanently un-resumable
+    // and un-deletable, with the reconciler re-failing it every tick.
+    expect(record.operation).toBeUndefined()
+    expect(record.error).toBeDefined()
+    expect(record.state).toBe('paused')
+    expect(record.checkpoint).toBeDefined()
+    // Suspended with no Pod is the state a later resume requires.
+    expect(read(sandboxes, id).spec.operatingMode).toBe('Suspended')
+    expect(pods.has(id)).toBe(false)
+    completeTransition = true
+    expect((await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })).status).toBe(201)
+    // The recovering resume replayed the checkpoint instead of taking a new one.
+    expect(workerActions).toEqual(['save', 'verify', 'verify'])
+    expect(read(pods, id).metadata?.annotations?.[RESTORE_ANNOTATION]).toStartWith(
+      '/var/lib/checkpoints/',
+    )
+    expect(deleteClaim).not.toHaveBeenCalled()
+  })
+
+  test('a template change under a paused sandbox refuses the restore without wedging it', async () => {
+    const id = await createMemorySandbox()
+    expect((await request(`/sandboxes/${id}/pause`, 'POST')).status).toBe(204)
+    // The runtime image is repointed while the sandbox holds a checkpoint of
+    // the old one, so the restore is incompatible and must not be attempted.
+    const container = read(sandboxes, id).spec.podTemplate?.spec?.containers[0]
+    if (container) container.image = `example@sha256:${'f'.repeat(64)}`
+    expect((await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })).status).toBe(500)
+    const record = recordSchema.parse(JSON.parse([...configMaps.values()][0].data?.record ?? ''))
+    expect(record.operation).toBeUndefined()
+    expect(record.error).toContain('template changed')
+    expect(record.checkpoint).toBeDefined()
+    // Refusing a restore must not cost the operator the sandbox itself.
+    expect((await request(`/sandboxes/${id}`, 'DELETE')).status).toBe(204)
+  })
+
   test('disabling configuration cannot silently use legacy pause/resume', async () => {
     const id = await createMemorySandbox()
     config.checkpoint = null

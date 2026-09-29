@@ -99,3 +99,25 @@ spec:
     app.kubernetes.io/name: sandbox-router
   ports:
     - {name: proxy, port: 8080, targetPort: proxy}
+    - {name: metrics, port: 9090, targetPort: metrics}
+{{- if .Values.router.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sandbox-router
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "xsphere.labels" . | nindent 4 }}
+    {{- with .Values.router.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sandbox-router
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+{{- end }}

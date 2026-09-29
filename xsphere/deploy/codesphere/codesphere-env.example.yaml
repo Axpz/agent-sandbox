@@ -1,0 +1,87 @@
+# Cluster-specific configuration for the Codesphere manifests in this directory.
+#
+# Copy this file, replace the placeholders, and apply it before app.yaml —
+# the backend and the migration Job read it through envFrom, so a missing
+# ConfigMap leaves their Pods in CreateContainerConfigError.
+#
+# Values that are wrong rather than missing fail less obviously: the backend
+# starts and then cannot reach a sandbox. docs/bootstrap.md lists the symptom
+# for each key.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: codesphere-env
+  namespace: codesphere
+data:
+  # sandbox-api's Service. Change the namespace if the xsphere chart is not
+  # installed in `sandbox`. This is the control-plane API, not the data plane.
+  AGENTSPHERE_API_URL: 'http://sandbox-api.sandbox.svc.cluster.local'
+
+  # Must equal the xsphere chart's `domain`. The SDK builds sandbox hostnames
+  # as <id>.<domain> and <port>-<id>.<domain>, so a mismatch here resolves to
+  # nothing and every sandbox request fails, while the API itself stays healthy.
+  AGENTSPHERE_DOMAIN: sandbox-edge.sandbox.svc.cluster.local
+
+  # 'false' is required when Edge serves a self-signed certificate, which is
+  # the private-development default. Set it to 'true' only with a CA-trusted
+  # certificate; the SDK has no scheme override, so it demands HTTPS once
+  # AGENTSPHERE_DEBUG is false.
+  AGENTSPHERE_VERIFY_SSL: 'false'
+
+  # A SandboxTemplate that already exists in the sandbox namespace. The chart's
+  # default is `xsphere-runtime-template`; with runtime.templateName set, use
+  # that name. A non-existent name surfaces only when a sandbox is requested.
+  AGENTSPHERE_TEMPLATE_NAME: xsphere-runtime-template
+
+  # The application's working directory *inside the sandbox*. It does not have to
+  # sit under the template's workspace mountPath: project state persists in S3,
+  # and this directory is materialised from there per session. Keep this value —
+  # it is the one the reference environment runs. Moving it onto the workspace
+  # volume changes the filesystem underneath it (a 9p gofer mount under gVisor,
+  # not the container layer) for no gain.
+  AGENTSPHERE_PROJECTS_BASE_DIR: /home/user/codesphere-app/data/projects
+
+  # MinIO from infra.yaml. Point it elsewhere if you bring your own S3.
+  AWS_S3_ENDPOINT: 'http://minio.infra.svc.cluster.local:9000'
+  AWS_REGION: us-east-1
+  AWS_S3_BUCKET: codesphere
+
+  # The address the *browser* opens for the Pi daemon WebSocket, not an
+  # in-cluster name: it is handed to the frontend and dialled from the user's
+  # machine. With kubectl port-forward this is the forwarded local address.
+  WS_PUBLIC_URL: 'ws://REPLACE_WITH_BROWSER_REACHABLE_HOST/workspace/internal/ws/pi-daemon'
+---
+# Application credentials. Replace every value; do not commit a filled-in copy.
+# DATABASE_URL and REDIS_URL must carry the same passwords as the Secret below,
+# and the AWS keys the same values as MinIO's root credentials.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: codesphere-runtime
+  namespace: codesphere
+type: Opaque
+stringData:
+  # API key the application presents to sandbox-api. The chart's
+  # development.allowUnauthenticated baseline does not check it, but the
+  # application still requires the variable to be set.
+  AGENTSPHERE_KEY: REPLACE_ME
+  # Flask/FastAPI session signing key. Rotating it invalidates sessions.
+  SECRET_KEY: REPLACE_ME
+  DATABASE_URL: 'postgresql://codesphere:REPLACE_ME@postgres.infra.svc.cluster.local:5432/codesphere'
+  REDIS_URL: 'redis://:REPLACE_ME@redis.infra.svc.cluster.local:6379/0'
+  AWS_ACCESS_KEY_ID: REPLACE_ME
+  AWS_SECRET_ACCESS_KEY: REPLACE_ME
+---
+# Backing-service credentials, consumed by infra.yaml. Same rule: replace
+# everything, keep them consistent with codesphere-runtime above.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: infra-credentials
+  namespace: infra
+type: Opaque
+stringData:
+  postgres-password: REPLACE_ME
+  redis-password: REPLACE_ME
+  minio-user: REPLACE_ME
+  minio-password: REPLACE_ME

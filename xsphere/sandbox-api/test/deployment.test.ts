@@ -4,10 +4,36 @@ import { parseAllDocuments } from 'yaml'
 
 const chart = resolve(import.meta.dir, '../../deploy/chart')
 const devValues = resolve(import.meta.dir, '../../deploy/values-dev.yaml')
-const monitoringDashboard = resolve(
-  import.meta.dir,
-  '../../deploy/monitoring/agent-sandbox-startup.json',
-)
+const dashboardDir = resolve(import.meta.dir, '../../deploy/chart/files/dashboards')
+const dashboardFiles = [
+  'sandbox-overview.json',
+  'sandbox-details.json',
+  'control-plane.json',
+  'snapshot-warmpool.json',
+]
+
+type Panel = {
+  type: string
+  title: string
+  targets?: { expr: string; instant?: boolean; datasource?: { uid: string } }[]
+  fieldConfig?: { defaults: { custom?: { spanNulls?: boolean } } }
+  options?: Record<string, any>
+  transformations?: { id: string }[]
+}
+
+async function dashboards(): Promise<[string, { panels: Panel[]; [key: string]: any }][]> {
+  return Promise.all(
+    dashboardFiles.map(
+      async (file) => [file, await Bun.file(resolve(dashboardDir, file)).json()] as const,
+    ),
+  )
+}
+
+function queries(dashboard: { panels: Panel[] }) {
+  return dashboard.panels.flatMap((panel) =>
+    (panel.targets ?? []).map((target) => ({ panel, target })),
+  )
+}
 
 function render(overrides: string[] = [], development = true) {
   return Bun.spawnSync(
@@ -162,7 +188,9 @@ describe('private development chart', () => {
     expect(template.spec.podTemplate.spec.runtimeClassName).toBe('gvisor-l2')
     expect(template.spec.podTemplate.spec.automountServiceAccountToken).toBe(false)
     expect(template.spec.volumeClaimTemplates[0].metadata.name).toBe('workspace')
-    expect(template.spec.podTemplate.spec.containers[0].securityContext).toBeUndefined()
+    expect(template.spec.podTemplate.spec.containers[0].securityContext.capabilities.add).toEqual([
+      'SYS_ADMIN',
+    ])
   })
 
   test('rejects malformed domain and Nginx upstream configuration', () => {
@@ -174,75 +202,170 @@ describe('private development chart', () => {
   })
 })
 
-describe('monitoring dashboard', () => {
-  test('lifecycle panels keep API namespace and time-window semantics', async () => {
-    const dashboard = await Bun.file(monitoringDashboard).json()
-    const panels = dashboard.panels.filter((panel: { id: number }) =>
-      [16, 17, 18, 19, 20].includes(panel.id),
+describe('monitoring dashboards', () => {
+  test('the chart delivers every dashboard file for the Grafana sidecar, opt-in', () => {
+    expect(resources().some((obj) => obj.metadata?.labels?.grafana_dashboard)).toBe(false)
+    const maps = resources(['--set', 'monitoring.dashboards.enabled=true']).filter(
+      (obj) => obj.kind === 'ConfigMap' && obj.metadata.labels?.grafana_dashboard === '1',
     )
-    expect(panels).toHaveLength(5)
-    for (const panel of panels) {
-      for (const target of panel.targets) {
-        expect(target.expr).toContain('sandbox_api_lifecycle_request_duration_seconds_')
-        expect(target.expr).toContain('namespace="$resource_namespace"')
-        expect(target.expr).toContain('[$__range]')
-        expect(target.expr).not.toContain('$template')
-      }
+    expect(maps).toHaveLength(dashboardFiles.length)
+    for (const map of maps) {
+      const [file] = Object.keys(map.data)
+      expect(dashboardFiles).toContain(file)
+      // The sidecar can only place these in a folder if it reads the annotation.
+      expect(map.metadata.annotations.grafana_folder).toBe('xsphere')
+      expect(map.metadata.namespace).toBe('isolated')
+      expect(JSON.parse(map.data[file]).uid).toMatch(/^xsphere-/)
     }
   })
-  test('keeps the existing URL and measures startup over the selected time window', async () => {
-    const dashboard = await Bun.file(monitoringDashboard).json()
-    expect(dashboard.uid).toBe('agent-sandbox-startup')
-    expect(dashboard.id).toBeNull()
-    expect(dashboard.version).toBe(0)
-    for (const panel of dashboard.panels) {
-      if (![1, 2, 3].includes(panel.id)) continue
-      for (const target of panel.targets) {
-        expect(target.instant).toBe(true)
-        expect(target.expr).toContain('increase(')
-        expect(target.expr).toContain('[$__range]')
+
+  test('router metrics stay on a separate port behind an opt-in ServiceMonitor', () => {
+    const objects = resources(['--set', 'router.serviceMonitor.enabled=true'])
+    const monitor = objects.find(
+      (obj) => obj.kind === 'ServiceMonitor' && obj.metadata.name === 'sandbox-router',
+    )
+    expect(monitor.spec.endpoints).toEqual([{ port: 'metrics', path: '/metrics', interval: '15s' }])
+    const service = objects.find(
+      (obj) => obj.kind === 'Service' && obj.metadata.name === 'sandbox-router-svc',
+    )
+    expect(service.spec.ports).toContainEqual({
+      name: 'metrics',
+      port: 9090,
+      targetPort: 'metrics',
+    })
+  })
+
+  test('every dashboard keeps a stable URL and one Prometheus datasource', async () => {
+    const uids = new Set<string>()
+    for (const [file, dashboard] of await dashboards()) {
+      expect(dashboard.uid).toMatch(/^xsphere-/)
+      expect(uids.has(dashboard.uid)).toBe(false)
+      uids.add(dashboard.uid)
+      expect(dashboard.id).toBeNull()
+      expect(dashboard.version).toBe(0)
+      expect(dashboard.tags).toContain('xsphere')
+      for (const { target } of queries(dashboard)) {
+        expect(target.datasource?.uid, `${file}: ${target.expr}`).toBe('prometheus')
       }
     }
   })
 
-  test('counts only Sandbox Pod roots and gives resource queries their own namespace filter', async () => {
-    const dashboard = await Bun.file(monitoringDashboard).json()
-    const namespace = dashboard.templating.list.find(
-      (variable: { name: string }) => variable.name === 'resource_namespace',
-    )
-    expect(namespace.multi).toBe(false)
-    expect(namespace.includeAll).toBe(false)
-    let resourcePanels = 0
-    for (const panel of dashboard.panels) {
-      if (![9, 10, 11, 13, 14].includes(panel.id)) continue
-      resourcePanels++
-      for (const target of panel.targets) {
+  test('sandbox resource queries count only Pod roots', async () => {
+    // gVisor exposes no per-container cgroup, and summing parent and child
+    // cgroups double-counts a Pod that does expose both.
+    const cgroup = /container_(memory_working_set_bytes|cpu_usage_seconds_total|fs_\w+_bytes_total)/
+    let checked = 0
+    for (const [file, dashboard] of await dashboards()) {
+      for (const { target } of queries(dashboard)) {
+        if (!cgroup.test(target.expr)) continue
+        // Control-plane containers are selected by name and do report per-container.
+        if (target.expr.includes('container=~"api|router|nginx"')) continue
+        checked++
         for (const matcher of ['container=""', 'image=""', 'name=""']) {
-          expect(target.expr).toContain(matcher)
+          expect(target.expr, `${file}: ${target.expr}`).toContain(matcher)
         }
-        expect(target.expr).toContain('namespace="$resource_namespace"')
-        expect(target.expr).toContain('kube_pod_owner{')
-        expect(target.expr).toContain('owner_kind="Sandbox"')
-        expect(target.expr).toContain('owner_is_controller="true"')
         expect(target.expr).not.toContain('container="runtime"')
-        expect(target.expr).not.toContain('$template')
       }
     }
-    expect(resourcePanels).toBe(5)
+    expect(checked).toBeGreaterThan(0)
   })
 
-  test('preserves heatmap time buckets and leaves missing resource observations as gaps', async () => {
-    const dashboard = await Bun.file(monitoringDashboard).json()
-    for (const panel of dashboard.panels) {
-      if (panel.type === 'heatmap') {
-        // Dropping zero timestamps can leave a single point with no heatmap cell width.
-        expect(panel.targets[0].expr).toBe(
-          'sum by (le) (increase(agent_sandbox_claim_controller_startup_latency_ms_bucket{launch_type="warm", sandbox_template=~"$template"}[$__rate_interval])) and on () (sum(increase(agent_sandbox_claim_controller_startup_latency_ms_count{launch_type="warm", sandbox_template=~"$template"}[$__range] @ end())) > 0)',
-        )
-        expect(panel.options.filterValues.le).toBeGreaterThanOrEqual(0)
+  test('controller metrics filter the workload namespace, not the controller Pod', async () => {
+    // Prometheus renames the colliding series label, so `namespace` on these
+    // families is the controller's own namespace.
+    const renamed = /agent_sandboxes|agent_sandbox_claim_creation_total/
+    const bare = /(?<!exported_)namespace=/
+    let renamedQueries = 0
+    let startupQueries = 0
+    for (const [file, dashboard] of await dashboards()) {
+      for (const { target } of queries(dashboard)) {
+        if (renamed.test(target.expr)) {
+          renamedQueries++
+          expect(target.expr, `${file}: ${target.expr}`).toContain('exported_namespace=~"$ns"')
+          expect(target.expr, `${file}: ${target.expr}`).not.toMatch(bare)
+        }
+        if (!target.expr.includes('agent_sandbox_claim_controller_startup_latency_ms_')) continue
+        startupQueries++
+        // The startup histograms carry no workload namespace label at all.
+        expect(target.expr, `${file}: ${target.expr}`).not.toMatch(/namespace=/)
+        expect(target.expr, `${file}: ${target.expr}`).toContain('sandbox_template=~"$template"')
       }
-      if (panel.type !== 'timeseries') continue
-      expect(panel.fieldConfig.defaults.custom.spanNulls).toBe(false)
+    }
+    expect(renamedQueries).toBeGreaterThan(0)
+    expect(startupQueries).toBeGreaterThan(0)
+  })
+
+  test('lifecycle request panels keep the namespace selector and stay out of the template filter', async () => {
+    let checked = 0
+    for (const [file, dashboard] of await dashboards()) {
+      for (const { target } of queries(dashboard)) {
+        if (!target.expr.includes('sandbox_api_lifecycle_request_duration_seconds_')) continue
+        checked++
+        expect(target.expr, `${file}: ${target.expr}`).toContain('namespace="$ns"')
+        expect(target.expr, `${file}: ${target.expr}`).not.toContain('$template')
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
+  })
+
+  test('range summaries stay instant and bounded by the selected window', async () => {
+    for (const [file, dashboard] of await dashboards()) {
+      for (const { panel, target } of queries(dashboard)) {
+        if (!target.instant) continue
+        if (!target.expr.includes('increase(')) continue
+        expect(target.expr, `${file}/${panel.title}`).toContain('[$__range]')
+      }
+    }
+  })
+
+  test('heatmaps keep zero buckets and leave missing observations as gaps', async () => {
+    let heatmaps = 0
+    for (const [, dashboard] of await dashboards()) {
+      for (const panel of dashboard.panels) {
+        if (panel.type === 'heatmap') {
+          heatmaps++
+          // Dropping zero timestamps can leave a single point with no cell width,
+          // so the empty-window guard evaluates the whole range at its end instead.
+          expect(panel.targets![0].expr).toContain('[$__range] @ end())) > 0)')
+          expect(panel.options!.filterValues.le).toBeGreaterThanOrEqual(0)
+          expect(panel.options!.legend.show).toBe(false)
+        }
+        if (panel.type !== 'timeseries') continue
+        expect(panel.fieldConfig!.defaults.custom!.spanNulls).toBe(false)
+      }
+    }
+    expect(heatmaps).toBeGreaterThan(0)
+  })
+
+  test('single-query tables do not join, so equal keys stay separate rows', async () => {
+    let single = 0
+    for (const [, dashboard] of await dashboards()) {
+      for (const panel of dashboard.panels) {
+        if (panel.type !== 'table') continue
+        const joins = (panel.transformations ?? []).filter(
+          (step: { id: string }) => step.id === 'joinByField',
+        )
+        if ((panel.targets ?? []).length > 1) {
+          // Several queries are only readable side by side once joined on a key.
+          expect(joins).toHaveLength(1)
+          continue
+        }
+        // Joining one frame on a label silently collapses rows sharing it —
+        // two alerts of the same name, or one container terminated twice.
+        single++
+        expect(joins).toHaveLength(0)
+      }
+    }
+    expect(single).toBeGreaterThan(0)
+  })
+
+  test('the overview links to a drill-down dashboard that exists', async () => {
+    const loaded = await dashboards()
+    const uids = new Set(loaded.map(([, dashboard]) => dashboard.uid))
+    const links = JSON.stringify(loaded).match(/\/d\/[\w-]+/g) ?? []
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) {
+      expect(uids.has(link.slice('/d/'.length))).toBe(true)
     }
   })
 })

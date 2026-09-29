@@ -1,0 +1,33 @@
+# Brings the Codesphere schema up to head. Run it after infra.yaml is Ready and
+# before app.yaml — the backend's readiness probe fails against an empty schema.
+#
+# A Job's spec is immutable, so re-running after a backend image change needs
+# `kubectl delete job -n codesphere codesphere-migrate` first.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: codesphere-migrate
+  namespace: codesphere
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: migrate
+          # Must be the same build as the backend in app.yaml: alembic revisions
+          # ship inside the image, so an older image migrates to an older head.
+          image: YOUR_CODESPHERE_BACKEND_IMAGE
+          imagePullPolicy: IfNotPresent
+          command: [alembic, upgrade, head]
+          envFrom:
+            # DATABASE_URL lives in the Secret; the ConfigMap is included for
+            # parity with the backend so both read one source of truth.
+            - configMapRef: {name: codesphere-env}
+            - secretRef: {name: codesphere-runtime}
+          env:
+            - {name: ENVIRONMENT, value: private-prod}
+            - {name: LOCAL_DEPLOYMENT, value: 'true'}
+            - {name: OBSERVABILITY_ENABLED, value: 'true'}

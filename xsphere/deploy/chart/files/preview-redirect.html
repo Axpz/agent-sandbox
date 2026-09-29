@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Preview</title>
+<script>
+  let destination = new URL("/", location.origin);
+  try {
+    const target = new URLSearchParams(location.search).get("target") || "/";
+    const candidate = new URL(target, location.origin);
+    const reserved = decodeURIComponent(candidate.pathname).split(/[/\\]/).includes("__preview_auth");
+    if (target.startsWith("/") && candidate.origin === location.origin && !reserved) {
+      destination = candidate;
+    }
+  } catch {}
+  destination.hash = location.hash;
+  location.replace(destination.href);
+</script>

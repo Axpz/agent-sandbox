@@ -2,7 +2,7 @@
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
+proxy_set_header X-Forwarded-Proto $upstream_x_forwarded_proto;
 proxy_http_version 1.1;
 proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection $connection_upgrade;
@@ -12,37 +12,136 @@ proxy_socket_keepalive on;
 proxy_read_timeout 3600s;
 proxy_send_timeout 3600s;
 {{- end -}}
+{{- define "xsphere.previewEntry" -}}
+{{- if .Values.edge.previewCompatibility }}
+# Private frontend compatibility only: this does not authenticate requests.
+location = /__preview_auth/auto {
+    default_type text/html;
+    add_header Cache-Control "no-store";
+    add_header Referrer-Policy "no-referrer";
+    return 200 {{ .Files.Get "files/preview-redirect.html" | quote }};
+}
+{{- end }}
+{{- end -}}
+{{- /*
+Gate on the existing sandbox-api "connect" endpoint (POST /sandboxes/{id}/connect,
+"Ensure a sandbox is running") before every proxied request. auth_request runs this
+as a sub-request with no body forwarded from the client; any 2xx from connect lets
+the real request through to sandbox-router. A concurrent memory transition returns
+409; auth_request treats that as an internal error, so the main request maps that
+specific status to a retryable 503.
+Requires $ensure_running_id to be `set` in the enclosing server block, and a
+static sandbox-api Service in the same namespace.
+*/ -}}
+{{- define "xsphere.ensureRunningLocation" -}}
+location = /__ensure_running {
+    internal;
+    proxy_method POST;
+    proxy_set_header Content-Type application/json;
+    proxy_set_body '{"timeout":900}';
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    rewrite ^ /sandboxes/$ensure_running_id/connect break;
+    proxy_pass http://sandbox-api;
+}
+{{- end -}}
+{{- define "xsphere.authErrorLocation" -}}
+location @sandbox_auth_error {
+    if ($sandbox_connect_status = 409) {
+        add_header Retry-After 2 always;
+        return 503 "sandbox lifecycle transition in progress; retry shortly\n";
+    }
+    return 500;
+}
+{{- end -}}
 {{- define "xsphere.nginx" -}}
+# Sandbox file/command payloads (e.g. bulk project scaffolding) can exceed
+# nginx's 1MB default; the sandbox side (envd/router) is the real limiter.
+# Must be set here (http-block scope for this conf.d fragment), not inside
+# a `location` — auth_request buffers the full body before the subrequest
+# runs, and enforces whatever client_max_body_size applied at that point.
+client_max_body_size 0;
 map $http_upgrade $connection_upgrade {
     default upgrade;
     '' close;
 }
+map $http_x_forwarded_proto $upstream_x_forwarded_proto {
+    default $scheme;
+    http http;
+    https https;
+}
 server {
     listen 80 default_server;
     server_name _;
-    if ($http_e2b_sandbox_id = "") { return 400; }
-    if ($http_e2b_sandbox_port = "") { return 400; }
+    if ($http_e2b_sandbox_id = "") { return 400 "missing E2b-Sandbox-Id header\n"; }
+    if ($http_e2b_sandbox_port = "") { return 400 "missing E2b-Sandbox-Port header\n"; }
+    set $ensure_running_id $http_e2b_sandbox_id;
+    {{- include "xsphere.previewEntry" . | nindent 4 }}
     location / {
+        auth_request /__ensure_running;
+        auth_request_set $sandbox_connect_status $upstream_status;
+        error_page 500 = @sandbox_auth_error;
+        proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
         proxy_set_header X-Sandbox-ID $http_e2b_sandbox_id;
         proxy_set_header X-Sandbox-Port $http_e2b_sandbox_port;
         {{- include "xsphere.proxySettings" . | nindent 8 }}
         proxy_pass http://sandbox-router-svc.{{ .Release.Namespace }}.svc.{{ .Values.router.clusterDomain }}:8080;
     }
+    {{- include "xsphere.ensureRunningLocation" . | nindent 4 }}
+    {{- include "xsphere.authErrorLocation" . | nindent 4 }}
 }
 server {
     listen 80;
-    server_name ~^(?<sbport>[0-9]+)-(?<sbid>.+)\.{{ regexQuoteMeta .Values.domain }}$;
+    server_name ~^(?<sbport>[0-9]+)-(?<sbid>[^.]+)\.{{ regexQuoteMeta .Values.domain }}$;
+    set $ensure_running_id $sbid;
+    {{- include "xsphere.previewEntry" . | nindent 4 }}
     location / {
+        auth_request /__ensure_running;
+        auth_request_set $sandbox_connect_status $upstream_status;
+        error_page 500 = @sandbox_auth_error;
+        proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
         proxy_set_header X-Sandbox-ID $sbid;
         proxy_set_header X-Sandbox-Port $sbport;
         {{- include "xsphere.proxySettings" . | nindent 8 }}
         proxy_pass http://sandbox-router-svc.{{ .Release.Namespace }}.svc.{{ .Values.router.clusterDomain }}:8080;
     }
+    {{- include "xsphere.ensureRunningLocation" . | nindent 4 }}
+    {{- include "xsphere.authErrorLocation" . | nindent 4 }}
 }
+{{- if .Values.edge.tls.enabled }}
+server {
+    listen 443 ssl;
+    ssl_certificate /etc/nginx/tls/tls.crt;
+    ssl_certificate_key /etc/nginx/tls/tls.key;
+    server_name ~^(?<sbport>[0-9]+)-(?<sbid>[^.]+)\.{{ regexQuoteMeta .Values.domain }}$;
+    set $ensure_running_id $sbid;
+    {{- include "xsphere.previewEntry" . | nindent 4 }}
+    location / {
+        auth_request /__ensure_running;
+        auth_request_set $sandbox_connect_status $upstream_status;
+        error_page 500 = @sandbox_auth_error;
+        proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
+        proxy_set_header X-Sandbox-ID $sbid;
+        proxy_set_header X-Sandbox-Port $sbport;
+        {{- include "xsphere.proxySettings" . | nindent 8 }}
+        proxy_pass http://sandbox-router-svc.{{ .Release.Namespace }}.svc.{{ .Values.router.clusterDomain }}:8080;
+    }
+    {{- include "xsphere.ensureRunningLocation" . | nindent 4 }}
+    {{- include "xsphere.authErrorLocation" . | nindent 4 }}
+}
+{{- end }}
 {{- if .Values.edge.frontend.enabled }}
 server {
     listen 80;
     server_name {{ .Values.edge.frontend.host }};
+    {{- range $path, $upstream := .Values.edge.frontend.paths }}
+    {{- range $location := list (printf "= %s" $path) (printf "%s/" $path) }}
+    location {{ $location }} {
+        {{- include "xsphere.proxySettings" $ | nindent 8 }}
+        proxy_pass {{ $upstream }};
+    }
+    {{- end }}
+    {{- end }}
     location / {
         {{- include "xsphere.proxySettings" . | nindent 8 }}
         proxy_pass {{ .Values.edge.frontend.upstream }};
@@ -87,8 +186,14 @@ spec:
           image: {{ .Values.edge.image | quote }}
           ports:
             - {name: http, containerPort: 80}
+            {{- if .Values.edge.tls.enabled }}
+            - {name: https, containerPort: 443}
+            {{- end }}
           volumeMounts:
             - {name: config, mountPath: /etc/nginx/conf.d, readOnly: true}
+            {{- if .Values.edge.tls.enabled }}
+            - {name: tls, mountPath: /etc/nginx/tls, readOnly: true}
+            {{- end }}
           readinessProbe:
             tcpSocket: {port: http}
           livenessProbe:
@@ -99,6 +204,13 @@ spec:
         - name: config
           configMap:
             name: sandbox-edge-nginx
+        {{- if .Values.edge.tls.enabled }}
+        - name: tls
+          secret:
+            # Must already exist in this namespace (kubernetes.io/tls Secret);
+            # this chart wires it up but does not provision certificates.
+            secretName: {{ .Values.edge.tls.secretName }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -119,3 +231,11 @@ spec:
       {{- if eq .Values.edge.serviceType "NodePort" }}
       nodePort: {{ .Values.edge.nodePort }}
       {{- end }}
+    {{- if .Values.edge.tls.enabled }}
+    - name: https
+      port: 443
+      targetPort: https
+      {{- if eq .Values.edge.serviceType "NodePort" }}
+      nodePort: {{ .Values.edge.tls.nodePort }}
+      {{- end }}
+    {{- end }}

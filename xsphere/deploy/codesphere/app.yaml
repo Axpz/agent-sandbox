@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: codesphere
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: codesphere-backend-data
+  namespace: codesphere
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 20Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: codesphere-backend
+  namespace: codesphere
+spec:
+  selector: {app: codesphere-backend}
+  ports: [{name: http, port: 8082, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codesphere-backend
+  namespace: codesphere
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: codesphere-backend}
+  template:
+    metadata:
+      labels: {app: codesphere-backend}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: backend
+          # Private build; supply your own. See docs/bootstrap.md for the tag this
+          # deployment was validated with.
+          image: YOUR_CODESPHERE_BACKEND_IMAGE
+          imagePullPolicy: IfNotPresent
+          args: [--port, '8082', --env, private-test]
+          envFrom:
+            # Cluster-specific values: endpoints, bucket, template name, public
+            # WebSocket URL. Create from codesphere-env.example.yaml.
+            - configMapRef: {name: codesphere-env}
+            - secretRef: {name: codesphere-runtime}
+          env:
+            - {name: LOCAL_DEPLOYMENT, value: 'true'}
+            - {name: OBSERVABILITY_ENABLED, value: 'false'}
+            - {name: AGENTSPHERE_DRIVER, value: sdk}
+            - {name: AGENTSPHERE_DEBUG, value: 'false'}
+            # No volume provides this path. The application falls back to
+            # AGENTSPHERE_KEY from the Secret; kept as deployed rather than
+            # changed here.
+            - {name: AGENTSPHERE_BOOTSTRAP_SECRET_PATH, value: /etc/codesphere/sandbox-token}
+            - {name: LOG_DIR, value: /data/logs}
+            - {name: PROJECTS_DATA_ROOT, value: /data/projects}
+          ports: [{name: http, containerPort: 8082}]
+          volumeMounts: [{name: data, mountPath: /data}]
+          startupProbe:
+            httpGet: {path: /health/live, port: http}
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /health/ready, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health/live, port: http}
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits: {memory: 3Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            seccompProfile: {type: RuntimeDefault}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: codesphere-backend-data}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: codesphere-frontend
+  namespace: codesphere
+spec:
+  # Reach it with kubectl port-forward. Switch to NodePort only if the browser
+  # can route to a node address; on kind that is the node container's own IP,
+  # not the host's. See docs/bootstrap.md.
+  selector: {app: codesphere-frontend}
+  ports: [{name: http, port: 80, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codesphere-frontend
+  namespace: codesphere
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: codesphere-frontend}
+  template:
+    metadata:
+      labels: {app: codesphere-frontend}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: frontend
+          # Private build; supply your own. See docs/bootstrap.md.
+          image: YOUR_CODESPHERE_FRONTEND_IMAGE
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: BACKEND_HOST, value: 'codesphere-backend.codesphere.svc.cluster.local'}
+            - {name: BACKEND_PORT, value: '8082'}
+          ports: [{name: http, containerPort: 80}]
+          readinessProbe:
+            httpGet: {path: /workspace/, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /workspace/, port: http}
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, SETUID, SETGID, NET_BIND_SERVICE]
+            seccompProfile: {type: RuntimeDefault}

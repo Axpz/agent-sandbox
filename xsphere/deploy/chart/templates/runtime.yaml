@@ -12,6 +12,9 @@ spec:
   podTemplate:
     spec:
       automountServiceAccountToken: false
+      # The memory checkpoint path refuses any Pod that could be restarted
+      # underneath a saved image, so the runtime never restarts in place.
+      restartPolicy: Never
       {{- include "xsphere.nodeSettings" . | nindent 6 }}
       {{- with .Values.runtime.runtimeClassName }}
       runtimeClassName: {{ . | quote }}
@@ -22,6 +25,37 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - {name: envd, containerPort: 49983}
+          # A TCP-level probe would pass even when envd's accept loop is
+          # wedged (the kernel/netstack completes the handshake without any
+          # application involvement), which is exactly the failure mode this
+          # guards against — both probes must hit envd's own /health.
+          startupProbe:
+            httpGet: {path: /health, port: envd}
+            periodSeconds: {{ .Values.runtime.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.runtime.startupProbe.failureThreshold }}
+          readinessProbe:
+            httpGet: {path: /health, port: envd}
+            periodSeconds: 2
+            failureThreshold: 3
+          # A gVisor restore replays envd's saved memory image against a freshly
+          # built netstack, leaving its netpoller waiting for an edge-triggered
+          # readiness notification that is never delivered again: accept()
+          # blocks forever while the process looks perfectly healthy. Every
+          # process in a restored sandbox comes back from the checkpoint, so
+          # this hook is the only code that genuinely runs anew afterwards, and
+          # therefore the only place the wedge can be detected. Killing envd is
+          # the whole fix -- the entrypoint's supervisor loop starts a fresh
+          # one. Restarting the container instead would destroy the restored
+          # process tree and turn every resume into a cold start.
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/usr/local/bin/envd-recover"]
+          # s3fs mounts the user bucket from inside the sandbox, and mount(2)
+          # is denied without CAP_SYS_ADMIN even for root.
+          securityContext:
+            capabilities:
+              add: ["SYS_ADMIN"]
           volumeMounts:
             - name: workspace
               mountPath: {{ .Values.runtime.workspace.mountPath | quote }}
