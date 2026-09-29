@@ -49,13 +49,6 @@ Keep architecture and immutable digests in your release record when publishing.
 or loading them into a cluster. Existing controller/Router build targets and
 Dockerfiles remain the implementation; there is no duplicate source tree.
 
-With the API and Nginx images already available locally, run
-`make -C xsphere smoke-images`. `API_IMAGE` and `EDGE_IMAGE` may select local
-verification tags; `EDGE_PLATFORM` can explicitly select an available architecture
-for a configuration-only check (it does not validate the other architecture).
-This checks API health/OpenAPI and rendered Nginx configuration
-in network-isolated test containers. It is not Kubernetes or SDK E2E coverage.
-
 Create an environment-specific values file under `xsphere/local/`, based on
 [values-dev.yaml](../deploy/values-dev.yaml). For example, a new namespace with an
 unprivileged envd-compatible runtime could use:
@@ -119,3 +112,37 @@ dependencies. The chart does not redeploy the existing PostgreSQL, Redis or Seaw
 
 Values are grouped by component and validated for types and unsafe Nginx substitutions,
 following the [Helm values guidance](https://helm.sh/docs/chart_best_practices/values/).
+
+## Existing Edge Configuration
+
+Keep shared routing rules in the chart and deployment-specific hosts, images and
+upstreams in your local values file. For an optional frontend with a base-path app:
+
+```yaml
+edge:
+  previewCompatibility: true
+  frontend:
+    enabled: true
+    host: app.example.invalid
+    upstream: http://frontend.default.svc.cluster.local:80
+    paths:
+      /lite: http://lite-app.sandbox.svc.cluster.local:80
+```
+
+`paths` forwards both `/lite` and `/lite/...` without stripping the prefix; the app
+must be built for that base path. Upstreams must not have a trailing slash or URI.
+The default frontend and sandbox host/header routing remain separate.
+`previewCompatibility` is opt-in for the private UI's `/__preview_auth/auto?target=...`
+entry. It serves a browser redirect preserving the origin, target path/query and
+fragment. Invalid, external or recursive targets fall back to `/`. It does not
+authenticate users or create a preview session. Forwarded scheme headers are only
+meaningful behind a trusted proxy; this remains a private development deployment.
+
+For an existing kubectl-managed Edge, back up the live ConfigMap and compare it
+with the rendered `sandbox-edge-nginx` object before applying only that object.
+Do not apply the accompanying Deployment/Service or adopt them into Helm as a
+side effect. Validate the candidate with the deployed Nginx version first. After
+the ConfigMap volume updates, confirm the mounted file matches, run `nginx -t`,
+then `nginx -s reload`. A ConfigMap-only apply does not update the Deployment's
+checksum or automatically reload Nginx. Check the main UI, preview and base-path
+routes; rollback by restoring the saved ConfigMap and repeating validation/reload.

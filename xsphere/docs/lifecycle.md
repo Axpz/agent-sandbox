@@ -96,3 +96,72 @@ API cannot honor their checkpoint state.
 Historical validation and exact runtime versions are recorded in [runtime/](../runtime/)
 and [archive/](../archive/); they are not an assertion that every ARM machine,
 kernel feature, active connection or business application can be restored.
+
+## Edge Auto-Resume (`ensure_running`)
+
+Before this, a request that reached a suspended Sandbox's data-plane port had
+no way to come back up on its own: `sandbox-router` only watches Pods, so a
+suspended Sandbox (no Pod) is a dial failure, and the client had to know to
+call `resume`/`connect` itself first. `sandbox-api` already exposed
+`POST /sandboxes/{id}/connect` ("Ensure a sandbox is running" —
+`sandbox-api/src/k8s/backend.ts` `connectSandbox()`) for exactly this, but
+nothing on the data-plane path called it.
+
+`sandbox-edge` now gates every proxied request on that existing endpoint via
+nginx's `auth_request`, instead of adding a new API:
+
+```
+location / {
+    auth_request /__ensure_running;   # blocks until the target is Running
+    proxy_pass http://sandbox-router-svc...;
+}
+location = /__ensure_running {
+    internal;
+    proxy_method POST;
+    proxy_set_body '{"timeout":900}';
+    rewrite ^ /sandboxes/$ensure_running_id/connect break;
+    proxy_pass http://sandbox-api;
+}
+```
+
+`auth_request` runs this as a header-only subrequest — the client's body is
+never sent to `connect` — and only forwards to `sandbox-router` once it
+succeeds. This is transparent to the caller: a bare `curl` to a suspended
+sandbox's port now transparently resumes it, the same as an SDK that calls
+`connect` itself. Edge and API share a namespace, so the static `sandbox-api`
+Service name is resolved through the Pod's normal Kubernetes DNS configuration.
+`sandbox-router` and the e2b-compat contract are unchanged.
+
+**Known limitations, deliberately not solved here:**
+
+- **No service credential.** `connect` is documented with `X-API-KEY` security
+  (`routes.ts`), but enforcement isn't wired in yet (`app.ts`: "enforcement
+  lands in a later block") — see the [Current Boundary](../README.md) note.
+  Data-plane callers never carry `X-API-KEY` at all (envd auth is Basic +
+  `X-Access-Token`), so once enforcement lands, Edge will need its own
+  service-to-service credential to call `connect` on the caller's behalf —
+  it cannot forward one that was never presented to it.
+- **Non-2xx/401/403 responses need explicit handling.** `auth_request` treats
+  any other subrequest status as an internal error. `/connect` now waits for an
+  in-flight memory transition, and a remaining 409 is mapped to a retryable
+  503 with `Retry-After`; unrelated errors such as an unknown sandbox or an API
+  failure still surface as errors.
+- **Blocking latency.** The internal call has its own `proxy_read_timeout
+  60s`, separate from the data-plane's `3600s` — a cold resume (Pod
+  recreate, or gVisor restore per the memory workflow above) that takes
+  longer than that fails the whole request rather than hanging it forever.
+  Revisit this if large-memory restores approach it.
+
+**Newly verified on the 55 kind cluster (2026-09-28), against the live
+`sandbox-edge-nginx` ConfigMap, not a scratch copy:**
+
+| Check | Result |
+| --- | --- |
+| `nginx -t` on the live pod after the ConfigMap sync + before reload | syntax ok |
+| `nginx -s reload` | clean, 0 restarts |
+| Bare `curl` (no prior `connect`/`resume` call) to a `SandboxSuspended` sandbox | HTTP 204 in 3.79s; Sandbox flipped `Suspended: False` / `Ready: True` at the exact request timestamp |
+| Same request repeated against the now-Running sandbox | HTTP 204 in 0.02s — the `connect` fast path skips the patch+wait when already running |
+
+The 3.79s vs 0.02s gap is the resume cost showing up transparently in a plain
+`curl`'s latency, with no SDK cooperation — this is the behavior this section
+set out to add.

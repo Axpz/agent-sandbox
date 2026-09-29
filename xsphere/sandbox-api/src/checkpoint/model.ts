@@ -80,7 +80,7 @@ export const recordSchema = z.object({
     .object({
       id,
       action: z.enum(['pause', 'resume']),
-      stage: z.enum(['save', 'suspend', 'verify', 'start']),
+      stage: z.enum(['save', 'suspend', 'verify', 'start', 'abandon']),
       source: sourceSchema,
       startedAt: z.string().datetime(),
       resumeTimeoutSeconds: z.number().nonnegative().optional(),
@@ -91,3 +91,8 @@ export const recordSchema = z.object({
 export type MemoryRecord = z.infer<typeof recordSchema>
 
 export class MemoryConflict extends Error {}
+
+// A restore given up on with the Sandbox suspended and its Pod gone, unlike a
+// transport error that may hide a running worker Job. The journal can therefore
+// be released, leaving the committed checkpoint resumable by a later attempt.
+export class RestoreAbandoned extends Error {}

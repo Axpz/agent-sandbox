@@ -1,0 +1,88 @@
+# Chart values for the sandbox stack that backs the Codesphere manifests in this
+# directory. Copy it to xsphere/local/ (gitignored, see docs/deployment.md),
+# replace every placeholder, and install with `helm upgrade --install`.
+#
+# The Codesphere application can share one release with any other sandbox
+# consumer — nothing here is specific to it except the workspace mountPath,
+# which must contain AGENTSPHERE_PROJECTS_BASE_DIR from the codesphere-env
+# ConfigMap.
+#
+# The checkpoint block is only needed for memory-level pause/resume, which
+# requires gVisor and amd64. Omit it entirely for a filesystem-only setup;
+# docs/bootstrap.md covers the node prerequisites.
+development:
+  # No API-key check. Acceptable for a private cluster only.
+  allowUnauthenticated: true
+
+# Must equal AGENTSPHERE_DOMAIN in the codesphere-env ConfigMap. Sandbox
+# hostnames are <id>.<domain> and <port>-<id>.<domain>, so whatever resolves
+# these — a real zone, or a CoreDNS rewrite rule for an in-cluster name — has to
+# cover the wildcard, not just the apex.
+domain: REPLACE_WITH_SANDBOX_DOMAIN
+
+# A memory image can only be restored on the node that produced it, so sandboxes
+# are pinned by hostname. Required whenever api.checkpoint is set.
+nodeSelector:
+  kubernetes.io/hostname: YOUR_NODE_NAME
+
+api:
+  image: YOUR_SANDBOX_API_IMAGE
+  pullPolicy: IfNotPresent
+  warmPool: xsphere-warmpool
+  serviceMonitor:
+    # Requires a Prometheus that selects ServiceMonitors cluster-wide; see
+    # deploy/monitoring/README.md.
+    enabled: true
+  checkpoint:
+    runtimeClassName: gvisor-l2
+    nodeName: YOUR_NODE_NAME
+    # Paths are resolved on the node. On kind that means inside the node
+    # container, not on the host.
+    runscBinary: /var/local/gvisor-cr/runtime/current/runsc
+    # Checksum of the runsc above. The restore guard compares it, so a runtime
+    # upgrade that changes the binary invalidates existing memory images.
+    runscSha256: REPLACE_WITH_RUNSC_SHA256
+    runscRoot: /run/containerd/runsc/k8s.io
+    # Must already exist on the node; it is not created for you.
+    artifactRoot: /var/lib/gvisor-ckpt/checkpoints
+    # Digest-pinned by contract: the worker must not drift under a saved memory
+    # image.
+    workerImage: YOUR_SANDBOX_API_IMAGE@sha256:REPLACE_WITH_DIGEST
+    timeoutSeconds: 180
+
+router:
+  image: YOUR_SANDBOX_ROUTER_IMAGE
+  pullPolicy: IfNotPresent
+  serviceMonitor:
+    enabled: true
+
+monitoring:
+  dashboards:
+    # Ships the four Grafana dashboards as sidecar-discovered ConfigMaps.
+    enabled: true
+
+edge:
+  image: nginx:1.27.0
+  serviceType: ClusterIP
+  tls:
+    # The SDK requires https once AGENTSPHERE_DEBUG is false and offers no
+    # scheme override. Provide a wildcard certificate for `domain` in the
+    # secret the chart expects; with a self-signed one, clients also need
+    # AGENTSPHERE_VERIFY_SSL=false. docs/bootstrap.md has the recipe.
+    enabled: true
+
+runtime:
+  enabled: true
+  templateName: xsphere-runtime-template
+  # sandbox-api's request schema rejects mutable tags, so this must be an
+  # @sha256: reference even for a locally loaded image. On kind, alias the
+  # loaded manifest's digest with
+  # `ctr -n k8s.io images tag <tag> <name>@sha256:<digest>` — that digest is
+  # not what `docker push` would compute.
+  image: YOUR_RUNTIME_IMAGE@sha256:REPLACE_WITH_DIGEST
+  runtimeClassName: gvisor-l2
+  warmPoolReplicas: 1
+  workspace:
+    # Omit to use the cluster's default StorageClass.
+    size: 10Gi
+    mountPath: /data

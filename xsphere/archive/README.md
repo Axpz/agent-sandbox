@@ -55,8 +55,19 @@ covers API lifecycle contracts with a mocked Kubernetes client, fail-closed conf
 selection, Helm names/namespaces, private defaults, runtime opt-in, lint and build.
 It does not rerun the historical milestones or change any live cluster.
 
-The [initial verification record](verification-20260913.md) includes the ARM64 API
-image smoke result and the checks still pending before deployment.
+The retained verification records are scoped snapshots, not a cumulative claim
+that every result still holds for the current tree:
+
+| Record | Scope |
+| --- | --- |
+| [Product import, 2026-09-13](verification-20260913.md) | Imported API and chart baseline, ARM64 image smoke result, and publication gates |
+| [AMD64 memory pause/resume, 2026-09-28](verification-20260928-amd64-memory.md) | Product-level checkpoint/restore path and the prerequisites surfaced by that run |
+| [envd restore supervisor, 2026-09-29](verification-20260929-envd-restore-supervisor.md) | Recovery of an unhealthy restored envd process, with deployment evidence and limits |
+| [CodeSphere daemon startup, 2026-09-29](verification-20260929-daemon-startup.md) | Runtime lifecycle correction and its isolated verification boundary |
+
+Temporary handoff notes are working material. Once their durable findings are in
+the source, current docs, or a verification record, remove the handoff rather than
+maintaining a second account that can become stale.
 
 Before sharing this branch, review the new files and any existing untracked lab
 material separately. Never stage the entire dirty worktree as an import shortcut.
