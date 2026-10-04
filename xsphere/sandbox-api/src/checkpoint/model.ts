@@ -1,4 +1,4 @@
-import { isAbsolute, normalize } from 'node:path'
+import { isAbsolute, join, normalize } from 'node:path'
 import { z } from 'zod'
 
 const hostPath = z
@@ -54,10 +54,15 @@ export const checkpointSchema = z.object({
 })
 export type Checkpoint = z.infer<typeof checkpointSchema>
 
-export const workerRequestSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('save'), id, source: sourceSchema }),
-  z.object({ action: z.literal('verify'), checkpoint: checkpointSchema }),
-])
+// Only a save needs a node Job. It runs `runsc checkpoint`, which stops the
+// running container, so it must execute privileged on the node and must never be
+// repeated by a retry that cannot tell whether the first attempt got that far.
+// A restore reads nothing from the node; see validateRestorePlacement.
+export const workerRequestSchema = z.object({
+  action: z.literal('save'),
+  id,
+  source: sourceSchema,
+})
 export type WorkerRequest = z.infer<typeof workerRequestSchema>
 
 // Existing SDK metadata can convey the policy without changing its HTTP schema.
@@ -96,3 +101,25 @@ export class MemoryConflict extends Error {}
 // transport error that may hide a running worker Job. The journal can therefore
 // be released, leaving the committed checkpoint resumable by a later attempt.
 export class RestoreAbandoned extends Error {}
+
+export function imagePath(config: RuntimeConfig, source: Source, id: string): string {
+  return join(config.artifactRoot, source.sandboxUID, id)
+}
+
+// What a restore can settle from the journal alone, without reading the node's
+// disk. The images are deliberately not re-hashed first: runsc opens them
+// moments later anyway, and one that is missing or corrupt fails the restored
+// Pod, which the 'start' stage already has to handle. Re-hashing them cost
+// several seconds of every resume and grew with snapshot size, yet only ever
+// proved the bytes were intact before the Pod that reads them existed. These
+// comparisons are free and catch the mismatches that would otherwise surface as
+// an opaque restore failure: a snapshot from another node, from a different
+// runsc build, or recorded outside the configured artifact root.
+export function validateRestorePlacement(config: RuntimeConfig, checkpoint: Checkpoint): void {
+  if (checkpoint.source.nodeName !== config.nodeName)
+    throw new RestoreAbandoned('checkpoint belongs to a different node')
+  if (checkpoint.runscSha256 !== config.runscSha256)
+    throw new RestoreAbandoned('checkpoint was written by a different runsc build')
+  if (checkpoint.path !== imagePath(config, checkpoint.source, checkpoint.id))
+    throw new RestoreAbandoned('checkpoint path is outside the configured artifact root')
+}

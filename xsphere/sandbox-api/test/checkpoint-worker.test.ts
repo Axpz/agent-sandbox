@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { RuntimeConfig, Source } from '../src/checkpoint/model'
+import { type RuntimeConfig, type Source, validateRestorePlacement } from '../src/checkpoint/model'
 import { execute } from '../src/checkpoint/worker'
 
 let directory: string
@@ -86,8 +86,8 @@ test('native checkpoint stops the sandbox and can replay the saved manifest afte
   expect(commands.map((args) => args[0])).toEqual(['list', 'checkpoint'])
   expect(commands[1]).not.toContain('--leave-running')
   expect(stopped).toBe(true)
-  expect(checkpoint?.files).toHaveLength(3)
-  expect(JSON.parse(await readFile(join(checkpoint?.path ?? '', 'manifest.json'), 'utf8'))).toEqual(
+  expect(checkpoint.files).toHaveLength(3)
+  expect(JSON.parse(await readFile(join(checkpoint.path, 'manifest.json'), 'utf8'))).toEqual(
     checkpoint,
   )
   const replay = await execute(runtime, { action: 'save', id, source }, command)
@@ -105,24 +105,39 @@ test('save failure does not publish a manifest or try to restart the original', 
   await expect(readFile(join(directory, source.sandboxUID, id, 'manifest.json'))).rejects.toThrow()
 })
 
-test('a corrupt artifact cannot pass restore verification', async () => {
+test('a corrupt artifact cannot be replayed as a completed save', async () => {
   const checkpoint = await execute(runtime, { action: 'save', id, source }, command)
-  if (!checkpoint) throw new Error('missing checkpoint')
   await Bun.write(join(checkpoint.path, 'pages.img'), 'corrupt data')
-  await expect(execute(runtime, { action: 'verify', checkpoint }, command)).rejects.toThrow(
+  // The replay is the only remaining reader of the recorded hashes: a restore
+  // no longer re-reads the images, so this is where corruption has to be caught
+  // rather than be handed back as a finished snapshot.
+  await expect(execute(runtime, { action: 'save', id, source }, command)).rejects.toThrow(
     'integrity',
   )
 })
 
 test('a failed new save leaves the previous successful artifact intact', async () => {
   const checkpoint = await execute(runtime, { action: 'save', id, source }, command)
-  if (!checkpoint) throw new Error('missing checkpoint')
   stopped = false
   failSave = true
   await expect(
     execute(runtime, { action: 'save', id: crypto.randomUUID(), source }, command),
   ).rejects.toThrow('disk full')
-  expect(await execute(runtime, { action: 'verify', checkpoint }, command)).toEqual(checkpoint)
+  expect(await execute(runtime, { action: 'save', id, source }, command)).toEqual(checkpoint)
+})
+
+test('a restore refuses a checkpoint recorded for another node, runsc build or root', async () => {
+  const checkpoint = await execute(runtime, { action: 'save', id, source }, command)
+  expect(() => validateRestorePlacement(runtime, checkpoint)).not.toThrow()
+  expect(() => validateRestorePlacement({ ...runtime, nodeName: 'node-b' }, checkpoint)).toThrow(
+    'different node',
+  )
+  expect(() =>
+    validateRestorePlacement({ ...runtime, runscSha256: 'd'.repeat(64) }, checkpoint),
+  ).toThrow('runsc build')
+  expect(() =>
+    validateRestorePlacement({ ...runtime, artifactRoot: '/var/lib/elsewhere' }, checkpoint),
+  ).toThrow('artifact root')
 })
 
 test('node/runtime mismatch and unrelated external freezes are rejected', async () => {

@@ -22,6 +22,7 @@ import {
   recordSchema,
   type Source,
   sourceSchema,
+  validateRestorePlacement,
 } from './model'
 
 type Metadata = {
@@ -206,7 +207,6 @@ async function advance(journal: Journal): Promise<void> {
     if (op.stage === 'save') {
       const result = await poll({ action: 'save', id: op.id, source: op.source })
       if (!result.done) return
-      if (!result.checkpoint) throw new Error('save returned no checkpoint manifest')
       record.checkpoint = result.checkpoint
       op.stage = 'suspend'
       await persist(journal)
@@ -249,7 +249,7 @@ async function advance(journal: Journal): Promise<void> {
       }
       if (!record.checkpoint)
         throw new RestoreAbandoned('no committed checkpoint; refusing cold start')
-      if (!(await poll({ action: 'verify', checkpoint: record.checkpoint })).done) return
+      validateRestorePlacement(rt, record.checkpoint)
       const spec = bound.sandbox.spec as {
         podTemplate: { metadata?: { annotations?: Record<string, string> }; spec: V1Pod['spec'] }
       }
@@ -330,7 +330,6 @@ async function advance(journal: Journal): Promise<void> {
     // recorded; an uncertain/failed save needs inspection, not a fresh snapshot.
     if (error instanceof WorkerFailed) {
       record.error = error.message.slice(0, 2048)
-      if (op.stage === 'verify') delete record.operation
       await persist(journal)
     }
     // Keeping the operation here would make the sandbox permanently

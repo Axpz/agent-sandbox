@@ -143,11 +143,7 @@ export async function pollWorker(
         checkpoint?: unknown
       }
       if (!result.ok) throw new Error('missing successful result')
-      return {
-        done: true as const,
-        checkpoint:
-          request.action === 'save' ? checkpointSchema.parse(result.checkpoint) : undefined,
-      }
+      return { done: true as const, checkpoint: checkpointSchema.parse(result.checkpoint) }
     } catch (error) {
       throw new WorkerFailed(`checkpoint worker result was invalid: ${String(error)}`)
     }

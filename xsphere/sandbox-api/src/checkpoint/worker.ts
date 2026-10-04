@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import {
   type Checkpoint,
   checkpointSchema,
+  imagePath,
   type RuntimeConfig,
   runtimeConfigSchema,
   type Source,
@@ -101,10 +102,9 @@ function rootState(list: State[], source: Source): State {
   return root
 }
 
-function imagePath(config: RuntimeConfig, source: Source, id: string): string {
-  return join(config.artifactRoot, source.sandboxUID, id)
-}
-
+// Guards the replay below, the one place a recorded manifest is read back: an
+// interrupted save must not be resumed into a directory whose files no longer
+// match what the interrupted attempt had already committed.
 async function verify(config: RuntimeConfig, expected: Checkpoint): Promise<Checkpoint> {
   const path = imagePath(config, expected.source, expected.id)
   if (path !== expected.path || expected.runscSha256 !== config.runscSha256) {
@@ -133,7 +133,7 @@ async function verify(config: RuntimeConfig, expected: Checkpoint): Promise<Chec
 
 async function save(
   config: RuntimeConfig,
-  request: Extract<WorkerRequest, { action: 'save' }>,
+  request: WorkerRequest,
   command: Command,
 ): Promise<Checkpoint> {
   const { source, id } = request
@@ -191,15 +191,14 @@ export async function execute(
   config: RuntimeConfig,
   request: WorkerRequest,
   command: Command = runsc,
-): Promise<Checkpoint | null> {
+): Promise<Checkpoint> {
   if ((await realpath(config.artifactRoot)) !== config.artifactRoot)
     throw new Error('artifact root must not be a symlink')
   if ((await sha256(config.runscBinary)) !== config.runscSha256)
     throw new Error('runsc checksum mismatch')
-  const source = 'source' in request ? request.source : request.checkpoint.source
-  if (source.nodeName !== config.nodeName) throw new Error('checkpoint belongs to a different node')
-  if (request.action === 'save') return save(config, request, command)
-  return verify(config, request.checkpoint)
+  if (request.source.nodeName !== config.nodeName)
+    throw new Error('checkpoint belongs to a different node')
+  return save(config, request, command)
 }
 
 if (import.meta.main) {

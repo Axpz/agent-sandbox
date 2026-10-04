@@ -1,0 +1,565 @@
+{
+  "schemaVersion": 1,
+  "baseline": "55-20261004",
+  "capturedAt": "2026-10-04T02:30:11.971211+00:00",
+  "status": "local source/configuration baseline; no production certification or publication",
+  "chartVersion": "0.2.0",
+  "sourceBaseCommit": "b9491edcdd26a1c7775eb551bd11f4acffd437ef",
+  "sourceCommit": "the Git commit containing this baseline; base commit alone excludes adopted live changes",
+  "platform": {
+    "architecture": "amd64",
+    "kind": "0.33.0",
+    "kernelVersion": "6.17.0-19-generic",
+    "kubeletVersion": "v1.37.0",
+    "containerRuntimeVersion": "containerd://2.3.4",
+    "osImage": "Debian GNU/Linux 13 (trixie)"
+  },
+  "images": [
+    {
+      "namespace": "agent-sandbox-system",
+      "container": "agent-sandbox-controller",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:be477ba317d84a13a38d7605e925e7b4aa82de5b313a4274358920310a931b7f",
+      "runningManifestDigest": "sha256:f7192ebdb18dbcfa26f242b7108f370ecb6e8d99352b427de4697d51853309d8",
+      "configDigest": "sha256:7324c7c0cb9b37b2ac90859d2bcccfc6b083e04b2250065a5ff1a902c439bb28",
+      "runtimeImageIDKind": "config",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "registry.k8s.io/agent-sandbox/agent-sandbox-controller:v0.5.4",
+      "podReportedImageIDDigest": "sha256:7324c7c0cb9b37b2ac90859d2bcccfc6b083e04b2250065a5ff1a902c439bb28",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "codesphere",
+      "container": "backend",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:c598b6985f3b0e81ddc3fd1a16f099f73834a78fdce1e48d0e78f830a7ad04da",
+      "runningManifestDigest": "sha256:c598b6985f3b0e81ddc3fd1a16f099f73834a78fdce1e48d0e78f830a7ad04da",
+      "configDigest": "sha256:1c68ce4f844d4be10f2e34b854608938d66011119e1ebc99da98cae07d53a1e1",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "codesphere/backend:206-20260923-1c68ce4f",
+      "podReportedImageIDDigest": "sha256:2488198d523a5d79f21ca9bf103f0de74087e92fc3c9cbc31ce370ede8e45067",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "codesphere",
+      "container": "frontend",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:dfa2526d86bf1eba8481df8b4d44bcd872a289c20ff34ab3c57b45c49c1997ff",
+      "runningManifestDigest": "sha256:dfa2526d86bf1eba8481df8b4d44bcd872a289c20ff34ab3c57b45c49c1997ff",
+      "configDigest": "sha256:8b0ebe05a4af202e0dc3d50f8663f93797b1919548b8589ba0b3c168740112d6",
+      "runtimeImageIDKind": "config",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "codesphere/frontend:206-20260921-kind55",
+      "podReportedImageIDDigest": "sha256:8b0ebe05a4af202e0dc3d50f8663f93797b1919548b8589ba0b3c168740112d6",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "infra",
+      "container": "minio",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:a16cad481969d7ddb6fcd2f1c58284af3d1266190b9bedc3ef0801aeb05a93a9",
+      "runningManifestDigest": "sha256:a16cad481969d7ddb6fcd2f1c58284af3d1266190b9bedc3ef0801aeb05a93a9",
+      "configDigest": "sha256:69b2ec208575b69597784255eec6fa6a2985ee9e1a47f4411a51f7f5fdd193a9",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "minio/minio:RELEASE.2025-09-07T16-13-09Z",
+      "podReportedImageIDDigest": "sha256:d19edb2b3591c907b6e69f0e0a5b43ce6cb73ebf3633a1051f8cdc817eae7440",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "infra",
+      "container": "postgres",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:d615c03101f701a20e0f81572b89e7132fe27db427b0435d8148ea1d70fe8f06",
+      "runningManifestDigest": "sha256:d615c03101f701a20e0f81572b89e7132fe27db427b0435d8148ea1d70fe8f06",
+      "configDigest": "sha256:2698c2096ca78a41ae7477580afb30fe36d5368564511b2ea593dbfb26401fdd",
+      "runtimeImageIDKind": "config",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "docker.1panel.live/library/postgres:16.8",
+      "podReportedImageIDDigest": "sha256:2698c2096ca78a41ae7477580afb30fe36d5368564511b2ea593dbfb26401fdd",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "infra",
+      "container": "redis",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:3094cf6f8eeb9447d8836faa0c801fe8fa6e7d36d8c6f01799d2cda4d66bc442",
+      "runningManifestDigest": "sha256:3094cf6f8eeb9447d8836faa0c801fe8fa6e7d36d8c6f01799d2cda4d66bc442",
+      "configDigest": "sha256:f218e591b571a4129aa29a8566b597d849fba21af7be853d31b03122b20db5e9",
+      "runtimeImageIDKind": "config",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "redis:7-alpine",
+      "podReportedImageIDDigest": "sha256:f218e591b571a4129aa29a8566b597d849fba21af7be853d31b03122b20db5e9",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "grafana",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:3600073f45a9895d2e2c4042da0e745819f5b78bf781266952a400c40dcd8d69",
+      "runningManifestDigest": "sha256:5e655f9a271aadf00d1db513f64c927af9319b0ce673359bba5072413c0da5fd",
+      "configDigest": "sha256:3bf17672302cfdcab7dc5cb6c98bd5382bd94c05dda695aa53f18336abfd87e2",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "docker.m.daocloud.io/grafana/grafana:13.2.1-distroless",
+      "podReportedImageIDDigest": "sha256:3600073f45a9895d2e2c4042da0e745819f5b78bf781266952a400c40dcd8d69",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "grafana-sc-dashboard",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:2912be006f62f9ea080194cf6d3afcd90daead8d101d0ba686a137a849f6a4f6",
+      "runningManifestDigest": "sha256:d78f9e2c1e20356a8ad6359f346ff35b5589922df56c8ce4d67ad38749fad65f",
+      "configDigest": "sha256:9c845d88004828edba1416046266211a0b8e93ba8b0e62f57f0aabb61ee4588e",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "quay.io/kiwigrid/k8s-sidecar:2.11.2",
+      "podReportedImageIDDigest": "sha256:2912be006f62f9ea080194cf6d3afcd90daead8d101d0ba686a137a849f6a4f6",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "grafana-sc-datasources",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:2912be006f62f9ea080194cf6d3afcd90daead8d101d0ba686a137a849f6a4f6",
+      "runningManifestDigest": "sha256:d78f9e2c1e20356a8ad6359f346ff35b5589922df56c8ce4d67ad38749fad65f",
+      "configDigest": "sha256:9c845d88004828edba1416046266211a0b8e93ba8b0e62f57f0aabb61ee4588e",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "quay.io/kiwigrid/k8s-sidecar:2.11.2",
+      "podReportedImageIDDigest": "sha256:2912be006f62f9ea080194cf6d3afcd90daead8d101d0ba686a137a849f6a4f6",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "kube-state-metrics",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:42cfe3723a5f058171c627537fb57a3ea0f26e4380fa18555a95cb1a1b4cfc5b",
+      "runningManifestDigest": "sha256:01171220c7c059afc85034ffe687bfe7249e41c0cc46fbe9a5128503ceee3016",
+      "configDigest": "sha256:a635e3d8e1a4f75a18349bdea3fccfcf84ac6da920eeed1eb3313d8065ab7bdd",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "k8s.m.daocloud.io/kube-state-metrics/kube-state-metrics:v2.20.0",
+      "podReportedImageIDDigest": "sha256:42cfe3723a5f058171c627537fb57a3ea0f26e4380fa18555a95cb1a1b4cfc5b",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "kube-prometheus-stack",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:e52bb28fd41c98dd407c7a8cba8bdcfe7eabd7447e250afaf1fe7bb816dedbff",
+      "runningManifestDigest": "sha256:43b87fc949b56f035ff5bf0b228054e753c10801cdf32ebfe0a6448014f80353",
+      "configDigest": "sha256:321c536e73beb2692fa01c9f19019a2a60c9f1e8f119bfafc79beae899512051",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "quay.io/prometheus-operator/prometheus-operator:v0.93.1",
+      "podReportedImageIDDigest": "sha256:e52bb28fd41c98dd407c7a8cba8bdcfe7eabd7447e250afaf1fe7bb816dedbff",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "node-exporter",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:8c9bac11973b94b59be88d6e11fee4429aa743c8846cdc75d65b18db33f6a106",
+      "runningManifestDigest": "sha256:bbfbd533202cfef891c70383ddf6f0c32acece66400ad8091a18bed7aad5db6f",
+      "configDigest": "sha256:6ce127b25a483f9181abc5205a5967b65427ec43f0aa38eb69c5768db42ca634",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "quay.io/prometheus/node-exporter:v1.12.1-distroless",
+      "podReportedImageIDDigest": "sha256:8c9bac11973b94b59be88d6e11fee4429aa743c8846cdc75d65b18db33f6a106",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "config-reloader",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:428f088fe6fe07ab138bda92113664b04848a1dc408e4d3680a60ecdb55d1a65",
+      "runningManifestDigest": "sha256:a8ef925b324babee5da12ff39dc9754c655a0374e84cc072b3ea5625f8349e9c",
+      "configDigest": "sha256:cb2f197322b2aaedbdebd6600d1367698bdd46b07842359c2c61b575267006b0",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "quay.io/prometheus-operator/prometheus-config-reloader:v0.93.1",
+      "podReportedImageIDDigest": "sha256:428f088fe6fe07ab138bda92113664b04848a1dc408e4d3680a60ecdb55d1a65",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "monitoring",
+      "container": "prometheus",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a",
+      "runningManifestDigest": "sha256:934c331c7aa29ffdb23b4befec6f34321c518453e63713d741d8ac1737c8e049",
+      "configDigest": "sha256:b7256d9c7ab77c40460448db3fc1680434223ebd06c4474d66da9121d25cb975",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "quay.io/prometheus/prometheus:v3.14.0-distroless",
+      "podReportedImageIDDigest": "sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "sandbox",
+      "container": "api",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:02aaf3f334860f06204c49f6664012a9e5f44860c311546ba947f8c548aed3ad",
+      "runningManifestDigest": "sha256:02aaf3f334860f06204c49f6664012a9e5f44860c311546ba947f8c548aed3ad",
+      "configDigest": "sha256:2879f7acd107c6945c2f4155ac8e01882ec529786a8e3f99174b03439755de5d",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "sandbox-api:noverify-20260930-1028",
+      "podReportedImageIDDigest": "sha256:149fbea8476ca8908069d288de851c7d8600e620a1152d5e2a5f2d3d16170628",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "sandbox",
+      "container": "nginx",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:7183446dbb193731a504732a9399947a37f54477a61efff97113ebd23f31ad00",
+      "runningManifestDigest": "sha256:7183446dbb193731a504732a9399947a37f54477a61efff97113ebd23f31ad00",
+      "configDigest": "sha256:900dca2a61f5799aabe662339a940cf444dfd39777648ca6a953f82b685997ed",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "<private-registry>/library/nginx:1.27.0",
+      "podReportedImageIDDigest": "sha256:0cd12d8805ada42e678bc90a114362b695b65b92c7834b5b6d42507be5b23429",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "sandbox",
+      "container": "router",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:133e1ec3cc0da3965ff699f4fc78d940bc109a0460c022e1cf595687ade1c64d",
+      "runningManifestDigest": "sha256:133e1ec3cc0da3965ff699f4fc78d940bc109a0460c022e1cf595687ade1c64d",
+      "configDigest": "sha256:2683a2e41cd631f90b51de510016c1acc67051b7cb9f4ac7b247870f9dfc141f",
+      "runtimeImageIDKind": "index",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "sandbox-router:xsphere-dev",
+      "podReportedImageIDDigest": "sha256:60fb416848268c7a9f4f5750bff7081d93db42eabd27fe45dd6e611e0e5a28f7",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    },
+    {
+      "namespace": "sandbox",
+      "container": "runtime",
+      "platform": "linux/amd64",
+      "targetDigest": "sha256:1d72d6121c5457ad766236d46264f5e19801794af9e2e3516f9c35e94c9921d4",
+      "runningManifestDigest": "sha256:1d72d6121c5457ad766236d46264f5e19801794af9e2e3516f9c35e94c9921d4",
+      "configDigest": "sha256:49c0eca4588766a901b36e578bb0684c0e47af16ca8e2f3a6d69ee4746a1aec4",
+      "runtimeImageIDKind": "manifest",
+      "tagMatchesRunningConfigAndLayers": true,
+      "observedImageRef": "codesphere-runtime@sha256:1d72d6121c5457ad766236d46264f5e19801794af9e2e3516f9c35e94c9921d4",
+      "podReportedImageIDDigest": "sha256:1d72d6121c5457ad766236d46264f5e19801794af9e2e3516f9c35e94c9921d4",
+      "availability": "observed in node content store; registry retrieval and offline image archive not verified"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "xsphere/deploy/codesphere/runtime/entrypoint.sh",
+      "sha256": "f6a8962d824773e214e266471dcc56291b68dc9ccb9ea48008394ac4b4832bb4",
+      "evidence": "compared byte-for-byte with live warm-pool container"
+    },
+    {
+      "path": "xsphere/deploy/codesphere/runtime/envd-recover.sh",
+      "sha256": "c2bfbc638fbe7ac209223b2595e9d2580c3e47c1a1820ea589de6110675b50cb",
+      "evidence": "compared byte-for-byte with live warm-pool container"
+    },
+    {
+      "path": "xsphere/deploy/codesphere/runtime/setup_codesphere.sh",
+      "sha256": "c906464aa7b3a637c6d86a82f0dd3b786733fef8f362fdb751585fd354dda555",
+      "evidence": "compared byte-for-byte with live warm-pool container"
+    },
+    {
+      "path": "xsphere/deploy/codesphere/runtime/start-up.sh",
+      "sha256": "8234d57a0612ea836c0b5ab3b472aab159f25fdce621a89e0386db32f5c9363c",
+      "evidence": "compared byte-for-byte with live warm-pool container"
+    },
+    {
+      "path": "xsphere/sandbox-api/bun.lock",
+      "sha256": "c7eada206aa5a59416431c5c07acc904201b0de755382d299f8c3dd385468c35",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/package.json",
+      "sha256": "aed5744305309c36fedaf64552fa38171afcc433f5fcada8bc121b8b66f51bf2",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/app.ts",
+      "sha256": "9082c634c5ec1b18e9d4ad19091d86cf3a57a7e792a111c3a12da3ac3068b439",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/checkpoint/jobs.ts",
+      "sha256": "29f29897f4ea2c030c307ca695998c1bb005e52017f717d1e04efb9acf8004b4",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/checkpoint/lifecycle.ts",
+      "sha256": "bb300b1c13adcaa2d48c2aabccc80a30112a1e4b9efd567c08ec840e91d262c0",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/checkpoint/model.ts",
+      "sha256": "40b722c6953e10831fa12b97cf9c9e33f793bcc222221e17827399f77d7bdb3f",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/checkpoint/worker.ts",
+      "sha256": "41b563d35291486d72abf7ef3978c9675ff8c68c620d1dfe689b609719fc5de3",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/config.ts",
+      "sha256": "033c4a5382e273dc5a57f2c9a836664adb8ed46eac5e4453dbc9ad62fea84b52",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/contract/routes.ts",
+      "sha256": "9fc93fcaa245f1631892b7f98c8b7ce26f026806792c0107191988ce2f896895",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/contract/schemas.ts",
+      "sha256": "523523b1863994e569a7bed5a0ed1df34636df1e65d5a2d442ffde2fedd3f355",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/index.ts",
+      "sha256": "e53700545880c8633a95c81de488eea0f0387f66e1e314935c57dbc16c6701df",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/k8s/backend.ts",
+      "sha256": "f3e1d7c240bd6891c1f955ee8c7b558fe2a5d46fe5c3dd556f1b3f01134ec7f0",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/k8s/client.ts",
+      "sha256": "8003e03cabfdefb879863e9b25e5d5442e4861cb4b21abf8a368363d97919e38",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/logger.ts",
+      "sha256": "8bf6885b3440ed0b1be618a5a48712dd84e9786f67e00bdef27b3ab636b663a2",
+      "evidence": "compared byte-for-byte with live API container"
+    },
+    {
+      "path": "xsphere/sandbox-api/src/metrics.ts",
+      "sha256": "6860952099b08cddff3e5f7d2c3ea25ee6593f18b0de59c7619fbc5a7294775b",
+      "evidence": "compared byte-for-byte with live API container"
+    }
+  ],
+  "externalRuntime": {
+    "runscVersion": "runsc version release-20260817.0\nspec: 1.2.1",
+    "runscSha256": "048b89aada69dc3333422e139d6e9d02f8ab06bda52398060e0fbdacca00074c",
+    "shimSha256": "1d459e4ef875a5dc7ef0bca29c9bbf6bf3e9dacefc7c18669713cb763bc34c4d",
+    "runtimeClass": "gvisor-l2",
+    "handler": "runsc-l2",
+    "sourceProvenance": "see xsphere/runtime/README.md historical build record; newer source pin is not this live binary",
+    "binaryArchive": "not copied; retained on existing node/host",
+    "checkpointArtifacts": "not read or copied"
+  },
+  "privateBackendHotfix": {
+    "containerPath": "/app/app/controllers/sandbox/_sandbox_assets.py",
+    "sha256": "9f07bbb4fa46c7e7ac5781d533d81ef95e667c4bac56a946912dfa47d260af9f",
+    "localBundleFile": "_sandbox_assets.py",
+    "evidence": "ConfigMap bytes equal live mounted file; Python syntax parsed without execution",
+    "sourceCommit": null,
+    "note": "image tag includes a config ID, not a verified Git commit; private application source is not imported into this repository"
+  },
+  "helmReleases": [
+    {
+      "name": "agent-sandbox",
+      "namespace": "agent-sandbox-system",
+      "revision": "4",
+      "chart": "agent-sandbox-0.1.0",
+      "app_version": ""
+    },
+    {
+      "name": "kube-prometheus-stack",
+      "namespace": "monitoring",
+      "revision": "4",
+      "chart": "kube-prometheus-stack-89.2.2",
+      "app_version": "v0.93.1"
+    }
+  ],
+  "localBundle": {
+    "path": "xsphere/local/baseline-55-20261004",
+    "tracked": false,
+    "contains": "observed resources, node configuration, API source, runtime scripts, private hotfix, image metadata and render-only values",
+    "excludes": [
+      "Secret values",
+      "kubeconfig",
+      "customer data",
+      "PVC contents",
+      "checkpoint memory",
+      "image layers",
+      "runtime binaries"
+    ],
+    "files": [
+      {
+        "path": "SHA256SUMS",
+        "sha256": "7efa3f4cd4c1160b9538e59260c5205b7051a6a2393023b8625728404d636b14"
+      },
+      {
+        "path": "_sandbox_assets.py",
+        "sha256": "9f07bbb4fa46c7e7ac5781d533d81ef95e667c4bac56a946912dfa47d260af9f"
+      },
+      {
+        "path": "api-source.tar",
+        "sha256": "f40b38c599329736d1664e59fdd8a99a4c6e9a2017109fe68c520d433a9f3df7"
+      },
+      {
+        "path": "capture-images-readonly.py",
+        "sha256": "3f354265576c625d7c1783c706db99d95de7db9fe726136630bc43e6920c43cb"
+      },
+      {
+        "path": "capture-readonly.py",
+        "sha256": "a3f707fec3e3cc81ffd884bbed0c7bc7f57bdfb4db5ec1406ac5b7b38cec77ce"
+      },
+      {
+        "path": "capture.json",
+        "sha256": "ab4f879f179b0e411e171b32e972ba7a9344b35ce11e3450be74cc9c648d0c20"
+      },
+      {
+        "path": "image-content.json",
+        "sha256": "146c76072e35d9858d03f49a86a8cc507e527cad2686f2070d28e1fc609b19a6"
+      },
+      {
+        "path": "observed-crds.json",
+        "sha256": "cd5f70eeb9cd044a433ec4d980b93a61d525404f510f87b90515313376f2a1e6"
+      },
+      {
+        "path": "observed-render.yaml",
+        "sha256": "d1a6d4f04112ac4825644571d6f5c3d5a822a9b939b81366a1d4294353ee4dc5"
+      },
+      {
+        "path": "observed-resources.json",
+        "sha256": "0563b7d6d45c3a94b37fd2ff2ba587fccd76306592411f4a95d70dc5b3331bdc"
+      },
+      {
+        "path": "observed-values.json",
+        "sha256": "ecf7c070e1fa019dcfe551071596c288c5d8cacecf12b7f7f596404e3e155608"
+      },
+      {
+        "path": "pinned-render.yaml",
+        "sha256": "12aaafaa9d166b65e1c2467577aee785a9386b4953fae6acc8579488c2f85e1b"
+      },
+      {
+        "path": "pinned-values.json",
+        "sha256": "7e7c7444e3904b09e412192e2ba9959d7c79d80f33d220088606c1646c657300"
+      },
+      {
+        "path": "render-differences.json",
+        "sha256": "8d5b4d7cb94dd874e514ae97bd105f4f96d5a39bc8c9c402307e63fe75f74060"
+      },
+      {
+        "path": "runtime-scripts.tar",
+        "sha256": "189bacece4aacd180f1dbae3cec5d0c9a3e89079dc3d967ad505857b495a51a4"
+      },
+      {
+        "path": "verify-render.ts",
+        "sha256": "bced70d5d056d87819f278c3c19b3830aee3cfaae9d231d5f579440c53305448"
+      }
+    ]
+  },
+  "validation": {
+    "offlineCheck": "make -C xsphere check: 50 Bun tests and 21 Python tests passed; 7 existing Biome warnings",
+    "liveSourceEquality": "15 API/dependency files and 4 runtime scripts",
+    "liveImageResolution": "18 running container image records resolved to linux/amd64 manifest and config digests; tag content matches running config/layers",
+    "newPauseResumeExercise": false,
+    "renderComparison": {
+      "matching": "all rendered spec/RBAC fields and byte-for-byte Edge configuration",
+      "differences": [
+        {
+          "path": "Deployment/sandbox/sandbox-edge/template/metadata/annotations/checksum/config",
+          "reason": "live rollout annotation is stale; observed resources retain it; current chart rendering would update it and can trigger a rollout"
+        }
+      ]
+    },
+    "toolVersions": {
+      "bun": "1.3.5",
+      "helm": "v3.16.4+g7877b45",
+      "python": "Python 3.14.0"
+    }
+  },
+  "limitations": [
+    "CodeSphere backend/frontend full source commits and Router build provenance are not verified",
+    "Image archives, runtime binaries and credentials remain external prerequisites",
+    "Existing WS_PUBLIC_URL and incomplete authentication are preserved, not repaired",
+    "Single node and local storage; no stateful rollback or data backup claim",
+    "Full CodeSphere chat/Pi memory continuity acceptance remains pending"
+  ],
+  "crds": [
+    {
+      "name": "sandboxes.agents.x-k8s.io",
+      "versions": [
+        {
+          "name": "v1beta1",
+          "served": true,
+          "storage": true,
+          "schemaSha256": "781f18055ecbc5ad55d13aea6eeb0dc62215904da1eb64cf28875332e4a9152e"
+        },
+        {
+          "name": "v1alpha1",
+          "served": true,
+          "storage": false,
+          "schemaSha256": "a8dfd4c6087addbe9417d48ea0a3dbd88f1d7409fdd771ff93e9815175f79d2d"
+        }
+      ],
+      "conversion": "preserved only in private bundle; destination must use its own webhook CA"
+    },
+    {
+      "name": "sandboxclaims.extensions.agents.x-k8s.io",
+      "versions": [
+        {
+          "name": "v1beta1",
+          "served": true,
+          "storage": true,
+          "schemaSha256": "1083d3b18db08f9fe129a1f40d9410d87ea3d9bde697199dfae6dbd64b159b92"
+        },
+        {
+          "name": "v1alpha1",
+          "served": true,
+          "storage": false,
+          "schemaSha256": "06955cff38273bb0da122ed4b9308228518dc6aa0f73a5a4154d274f7928dd29"
+        }
+      ],
+      "conversion": "preserved only in private bundle; destination must use its own webhook CA"
+    },
+    {
+      "name": "sandboxtemplates.extensions.agents.x-k8s.io",
+      "versions": [
+        {
+          "name": "v1beta1",
+          "served": true,
+          "storage": true,
+          "schemaSha256": "b1f17f99a49f4d1623640368bccdacf132f6e759d26974f7173bf8c9b152fefb"
+        },
+        {
+          "name": "v1alpha1",
+          "served": true,
+          "storage": false,
+          "schemaSha256": "bb0d706a07fb2b3939591b68c4630e92b19656b89105328a05ae6bd5d6993b04"
+        }
+      ],
+      "conversion": "preserved only in private bundle; destination must use its own webhook CA"
+    },
+    {
+      "name": "sandboxwarmpools.extensions.agents.x-k8s.io",
+      "versions": [
+        {
+          "name": "v1beta1",
+          "served": true,
+          "storage": true,
+          "schemaSha256": "7a1b203f3571e8ed966078e4adc42ac2d2b4665226e304d37c18aab4d5c3e24d"
+        },
+        {
+          "name": "v1alpha1",
+          "served": true,
+          "storage": false,
+          "schemaSha256": "5247f783dd53f936929cc7a9794c39a443692174f2190160f1045856fe7688d7"
+        }
+      ],
+      "conversion": "preserved only in private bundle; destination must use its own webhook CA"
+    }
+  ]
+}

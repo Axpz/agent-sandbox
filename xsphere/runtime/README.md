@@ -64,5 +64,11 @@ restore cleanup taking about two minutes remains a recorded limitation.
 
 Artifacts contain sensitive process memory. Restrict host-path annotations to
 trusted workloads. The [lifecycle guide](../docs/lifecycle.md) explains quiescing,
-artifact completion and recovery failure handling. Current sandbox-api pause/resume
-preserves PVC data, **not process memory**; node setup alone does not change that.
+artifact completion and recovery failure handling. The default sandbox-api workflow
+preserves PVC data; the opt-in checkpoint workflow preserves memory within its
+tested limits. Node setup alone does not enable that workflow.
+
+The [55 baseline](../docs/baseline.md) records the actual `release-20260817.0`
+AMD64 runsc and patched shim checksums observed on 2026-10-04. These are historical
+runtime artifacts, not binaries built from the newer source pin above. They remain
+external prerequisites; the baseline capture did not copy binaries or memory dumps.

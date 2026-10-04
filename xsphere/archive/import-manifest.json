@@ -71,6 +71,15 @@
         }
       ],
       "notes": "Imported from the existing working tree, not only HEAD. Hashes describe source bytes before portability and formatting edits. The source repository is retained unchanged."
+    },
+    {
+      "component": "55-running-baseline",
+      "date": "2026-10-04",
+      "sourceKind": "read-only-running-installation",
+      "sourceCommit": null,
+      "includesUncommittedChanges": true,
+      "manifest": "baseline-55-20261004.json",
+      "notes": "Adopts the API and Edge working-tree changes matching the live installation. The baseline manifest records source/runtime/image hashes. Exact environment configuration and the private mounted CodeSphere hotfix are retained only in the gitignored local bundle. No credentials, image layers, runtime binaries or memory dumps were imported."
     }
   ],
   "upstream": {

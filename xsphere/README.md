@@ -9,6 +9,11 @@ The Helm chart is the version source: bump `deploy/chart/Chart.yaml` for each
 xsphere release, keep `version` and `appVersion` aligned, and tag it
 `xsphere/vX.Y.Z`. The sandbox-api package is private and has no separate release.
 
+The [55 baseline](docs/baseline.md), `55-20261004`, freezes the observed AMD64
+installation and its matching source. It is a local snapshot of the 0.2.0 line,
+not a new chart release. Its lock distinguishes running image content from image
+tags, and records the private configuration bundle and remaining external artifacts.
+
 ## Naming and Ownership
 
 | Name | Responsibility | Source |

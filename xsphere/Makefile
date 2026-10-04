@@ -11,8 +11,11 @@ ROUTER_IMAGE ?= sandbox-router:xsphere-dev
 CONTROLLER_IMAGE ?= agent-sandbox-controller:xsphere-dev
 CONTROLLER_TAG ?= v0.5.4
 CONTROLLER_NAMESPACE ?= agent-sandbox-system
+BASELINE ?= 55-20261004
+SHA256SUM ?= shasum -a 256
 
 .PHONY: help install lint typecheck test build check render image dev image-tools-check controller-build router-build controller-image router-image images controller-render
+.PHONY: baseline-check baseline-local-check
 
 help:
 	@echo 'xsphere: install | check | build | render | image | dev'
@@ -20,6 +23,7 @@ help:
 	@echo 'Shared components: controller-build | router-build | images | controller-render'
 	@echo 'check/render are offline and do not change node runtimes.'
 	@echo 'Override VALUES with a local file for your environment.'
+	@echo 'Frozen baseline: baseline-check | baseline-local-check (requires private local bundle)'
 
 install:
 	cd sandbox-api && $(BUN) install --frozen-lockfile
@@ -67,3 +71,12 @@ images: image controller-image router-image
 
 controller-render:
 	@KUBECONFIG=/dev/null $(HELM) template agent-sandbox ../helm --namespace $(CONTROLLER_NAMESPACE) --set namespace.create=false --set namespace.name=$(CONTROLLER_NAMESPACE) --set image.tag=$(CONTROLLER_TAG) --set controller.extensions=true
+
+# Snapshot checks are explicit: later development may intentionally diverge from
+# this baseline without rewriting its historical checksums to make it pass.
+baseline-check:
+	cd .. && $(SHA256SUM) -c xsphere/archive/baseline-$(BASELINE).sha256
+
+baseline-local-check: baseline-check
+	$(SHA256SUM) -c archive/baseline-$(BASELINE).local.sha256
+	cd local/baseline-$(BASELINE) && $(SHA256SUM) -c SHA256SUMS

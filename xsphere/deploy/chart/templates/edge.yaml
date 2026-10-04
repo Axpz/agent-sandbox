@@ -184,6 +184,18 @@ spec:
       containers:
         - name: nginx
           image: {{ .Values.edge.image | quote }}
+          # nginx's default `worker_processes auto` is one worker per core, which
+          # on a large node OOM-kills the container against the modest limit
+          # below; the edge fronts a handful of long-lived proxy connections, so
+          # a single worker is ample. It has to be rewritten in nginx.conf rather
+          # than passed as `-g`: worker_processes is main-context only (the
+          # ConfigMap above mounts into conf.d, i.e. http context) and the image
+          # already sets it, so a `-g` override is a duplicate-directive error.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              sed -i 's/^worker_processes .*/worker_processes 1;/' /etc/nginx/nginx.conf
+              exec /docker-entrypoint.sh nginx -g 'daemon off;'
           ports:
             - {name: http, containerPort: 80}
             {{- if .Values.edge.tls.enabled }}

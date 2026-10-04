@@ -65,8 +65,15 @@ old and new instances do not concurrently process the same operation journals.
    path, requests `Suspended`, and waits for the controller to remove the old Pod.
    Pending Pod termination is not a successful pause. Do not force-delete the Pod
    object to make it appear complete.
-3. `resume` and `connect` validate the recorded artifact, put its path in the
-   restore annotation, request `Running`, and wait for the restored Pod to be Ready.
+3. `resume` and `connect` check the recorded artifact's node, runsc build and
+   path against the running configuration, put its path in the restore annotation,
+   request `Running`, and wait for the restored Pod to be Ready. They do not
+   re-read or re-hash the images. runsc opens them moments later anyway, and one
+   that is missing or corrupt fails the restored Pod, which this flow already has
+   to handle. Re-hashing them needed a node Job on every resume — about five of a
+   seven-second restore, growing with snapshot size — and still only proved the
+   bytes were intact before the Pod that reads them existed. So a bad artifact now
+   reports itself as an unusable Pod, and the node's runsc log says why.
 
 Artifacts live at `<artifactRoot>/<sandboxUID>/<operationUUID>/`. The record points
 to the latest successful snapshot. A new save uses a new directory, never overwrites
@@ -81,7 +88,9 @@ running. A failed or uncertain save is not retried automatically and may need op
 inspection. Restore failures never trigger a silent cold start.
 
 The existing private ConfigMap records in-flight progress and the last successful
-artifact. The existing API image runs short-lived node Jobs. `autoPause` uses the same
+artifact. The existing API image runs one short-lived node Job per save, which is the
+only step that needs node privileges and must not be repeated by a blind retry;
+restores run no Job. `autoPause` uses the same
 path, rather than controller expiry deleting a Pod before saving. No new CRD, daemon,
 Codesphere change or Router change is part of this step.
 

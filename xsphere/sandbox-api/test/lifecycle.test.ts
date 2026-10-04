@@ -189,22 +189,19 @@ mock.module('../src/k8s/client', () => ({
           (entry) => entry.name === 'CHECKPOINT_REQUEST',
         )?.value ?? '',
       ) as WorkerRequest
-      const checkpoint =
-        request.action === 'save'
-          ? {
-              id: request.id,
-              source: request.source,
-              rootID: 'd'.repeat(64),
-              path: `/var/lib/checkpoints/${request.source.sandboxUID}/${request.id}`,
-              runscSha256: 'b'.repeat(64),
-              createdAt: new Date().toISOString(),
-              files: ['checkpoint.img', 'pages.img', 'pages_meta.img'].map((name) => ({
-                name,
-                size: 10,
-                sha256: 'e'.repeat(64),
-              })),
-            }
-          : undefined
+      const checkpoint = {
+        id: request.id,
+        source: request.source,
+        rootID: 'd'.repeat(64),
+        path: `/var/lib/checkpoints/${request.source.sandboxUID}/${request.id}`,
+        runscSha256: 'b'.repeat(64),
+        createdAt: new Date().toISOString(),
+        files: ['checkpoint.img', 'pages.img', 'pages_meta.img'].map((name) => ({
+          name,
+          size: 10,
+          sha256: 'e'.repeat(64),
+        })),
+      }
       const failed = request.action === failWorker
       return {
         items: [
@@ -424,7 +421,8 @@ describe('memory lifecycle through the existing HTTP API', () => {
     expect(read(sandboxes, id).spec.operatingMode).toBe('Suspended')
     expect(pods.has(id)).toBe(false)
     expect((await request(`/sandboxes/${id}/connect`, 'POST', { timeout: 7200 })).status).toBe(201)
-    expect(workerActions).toEqual(['save', 'verify'])
+    // A restore runs no node Job: it validates the recorded snapshot in process.
+    expect(workerActions).toEqual(['save'])
     expect(read(pods, id).metadata?.uid).not.toBe(originalPodUID)
     expect(read(pods, id).metadata?.annotations?.[RESTORE_ANNOTATION]).toStartWith(
       '/var/lib/checkpoints/',
@@ -462,13 +460,16 @@ describe('memory lifecycle through the existing HTTP API', () => {
     const id = await createMemorySandbox()
     await request(`/sandboxes/${id}/pause`, 'POST')
     patchMode.mockClear()
-    failWorker = 'verify'
+    // The node's runtime is replaced while the sandbox holds a snapshot the old
+    // build wrote, so the recorded artifact is no longer restorable here.
+    if (config.checkpoint) config.checkpoint.runscSha256 = 'c'.repeat(64)
     expect((await request(`/sandboxes/${id}/connect`, 'POST', { timeout: 60 })).status).toBe(500)
     expect(patchMode).not.toHaveBeenCalled()
     expect(pods.has(id)).toBe(false)
     const record = recordSchema.parse(JSON.parse([...configMaps.values()][0].data?.record ?? ''))
     expect(record.state).toBe('paused')
     expect(record.checkpoint).toBeDefined()
+    expect(record.error).toContain('runsc build')
     expect(deleteClaim).not.toHaveBeenCalled()
   })
 
@@ -491,7 +492,7 @@ describe('memory lifecycle through the existing HTTP API', () => {
     completeTransition = true
     expect((await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })).status).toBe(201)
     // The recovering resume replayed the checkpoint instead of taking a new one.
-    expect(workerActions).toEqual(['save', 'verify', 'verify'])
+    expect(workerActions).toEqual(['save'])
     expect(read(pods, id).metadata?.annotations?.[RESTORE_ANNOTATION]).toStartWith(
       '/var/lib/checkpoints/',
     )

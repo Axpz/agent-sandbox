@@ -64,6 +64,7 @@ that every result still holds for the current tree:
 | [AMD64 memory pause/resume, 2026-09-28](verification-20260928-amd64-memory.md) | Product-level checkpoint/restore path and the prerequisites surfaced by that run |
 | [envd restore supervisor, 2026-09-29](verification-20260929-envd-restore-supervisor.md) | Recovery of an unhealthy restored envd process, with deployment evidence and limits |
 | [CodeSphere daemon startup, 2026-09-29](verification-20260929-daemon-startup.md) | Runtime lifecycle correction and its isolated verification boundary |
+| [55 baseline, 2026-10-04](baseline-55-20261004.json) | Read-only live source/configuration capture and image content identities; no new pause/resume exercise. [Verification and use](../docs/baseline.md) |
 
 Temporary handoff notes are working material. Once their durable findings are in
 the source, current docs, or a verification record, remove the handoff rather than
