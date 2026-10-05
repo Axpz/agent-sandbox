@@ -1,12 +1,16 @@
-# Two Different Pause/Resume Workflows
+# Sandbox Lifecycle
 
-Both workflows retain a Kubernetes Sandbox identity, but only one preserves process
-memory. Do not infer memory support from the name of an HTTP endpoint.
+[Product entry](../README.md). The [55 baseline](baseline.md) enables the opt-in
+memory workflow. Generic dev values leave it disabled. Both API modes retain a
+Kubernetes Sandbox identity; only the memory workflow preserves process memory.
 
 | Workflow | Pause | Resume | Preserved |
 | --- | --- | --- | --- |
 | Default sandbox-api | Request `operatingMode: Suspended`; wait for suspension | Request `Running`; wait for readiness | PVC data, not process memory |
-| Separately verified gVisor flow | Quiesce application, checkpoint, verify completion, then suspend | Set restore annotation to completed artifact, request Running, release application hold | Process state plus unchanged business PVC, within tested compatibility limits |
+| Opt-in sandbox-api memory workflow | Native checkpoint saves and stops processes; record completed artifact, then request Suspended | Check recorded node/runtime/path, set restore annotation, request Running and wait for readiness | Process state plus unchanged business PVC, within tested compatibility limits |
+
+Earlier manual gVisor experiments are historical evidence in [runtime/](../runtime/)
+and [archive/](../archive/), not an additional daily API workflow.
 
 ## Memory Workflow Boundary
 
@@ -40,9 +44,9 @@ Pod available during failed resume is not a guarantee this flow can make.
 
 ## Opt-In API: Save Then Stop
 
-The opt-in implementation under `sandbox-api/src/checkpoint/` is deployed in a
-private ARM64 kind installation. An isolated API exercise completed
-checkpoint, suspension and restoration to a Ready Pod. The existing business API
+The opt-in implementation lives under `sandbox-api/src/checkpoint/`. Historical
+validation in a private ARM64 kind installation included an isolated API exercise
+that completed checkpoint, suspension and restoration to a Ready Pod. The existing business API
 and template have since been upgraded in place; Codesphere and SDK calls are
 unchanged. A subsequent exercise through the deployed Codesphere Gateway/SDK
 completed create, envd command execution, pause, resume and deletion. An envd-started
@@ -145,7 +149,7 @@ Service name is resolved through the Pod's normal Kubernetes DNS configuration.
 
 - **No service credential.** `connect` is documented with `X-API-KEY` security
   (`routes.ts`), but enforcement isn't wired in yet (`app.ts`: "enforcement
-  lands in a later block") — see the [Current Boundary](../README.md) note.
+  lands in a later block") — see the [product entry](../README.md) for known gaps.
   Data-plane callers never carry `X-API-KEY` at all (envd auth is Basic +
   `X-Access-Token`), so once enforcement lands, Edge will need its own
   service-to-service credential to call `connect` on the caller's behalf —

@@ -7,9 +7,10 @@
 # which must contain AGENTSPHERE_PROJECTS_BASE_DIR from the codesphere-env
 # ConfigMap.
 #
-# The checkpoint block is only needed for memory-level pause/resume, which
-# requires gVisor and amd64. Omit it entirely for a filesystem-only setup;
-# docs/bootstrap.md covers the node prerequisites.
+# The checkpoint block is only needed for memory-level pause/resume with a
+# compatible gVisor runtime and shim. The 55 baseline uses amd64; see runtime/
+# for separately tested ARM64 configurations. Omit it for a PVC-only setup.
+# This is a generic example; docs/baseline.md identifies the exact 55 profile.
 development:
   # No API-key check. Acceptable for a private cluster only.
   allowUnauthenticated: true
@@ -74,7 +75,7 @@ edge:
 runtime:
   enabled: true
   templateName: xsphere-runtime-template
-  # sandbox-api's request schema rejects mutable tags, so this must be an
+  # The memory workflow rejects mutable tags, so this must be an
   # @sha256: reference even for a locally loaded image. On kind, alias the
   # loaded manifest's digest with
   # `ctr -n k8s.io images tag <tag> <name>@sha256:<digest>` — that digest is

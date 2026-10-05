@@ -1,5 +1,9 @@
 # Private Development Deployment
 
+[Product entry](../README.md). This is the generic chart deployment procedure.
+For the recorded 55 installation and its exact profile, start with the
+[frozen baseline](baseline.md); the dev values below are not that profile.
+
 This runbook is opt-in. It does not upgrade the existing installation. Start in a
 new test namespace, using a disposable business workload, before planning adoption
 of any current resources. Do not expose this unauthenticated baseline publicly.

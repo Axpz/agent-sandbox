@@ -1,5 +1,9 @@
 # Bootstrapping the Full Stack
 
+[Product entry](../README.md). Use this guide for a new private environment.
+For the actual 55 version and configuration captured on 2026-10-04, use the
+[frozen baseline](baseline.md); examples here are not a restore profile.
+
 How to bring up everything that makes a sandbox usable, in the order the layers
 depend on each other: node prerequisites, the agent-sandbox controller, the
 xsphere sandbox stack, an application with its backing services, monitoring, and
@@ -31,9 +35,11 @@ the document exists.
 
 ### Architecture
 
-**amd64**, if memory-level pause/resume is wanted. gVisor checkpoint/restore does
-not work on arm64. A filesystem-only sandbox stack runs on either; leave
-`api.checkpoint` unset there and the rest of this section does not apply.
+The 55 baseline uses **amd64**. A separate ARM64 VM with PAC disabled also has
+historical restore evidence in the [runtime reference](../runtime/README.md).
+Support depends on the tested runtime, shim and CPU configuration, not architecture
+alone. For PVC-only pause/resume, leave `api.checkpoint` unset; checkpoint-specific
+node setup is then unnecessary.
 
 ### Cluster
 
@@ -49,7 +55,7 @@ Two consequences of kind shape everything below:
 
 ### Getting images into the cluster
 
-`sandbox-api` rejects a mutable tag in a sandbox image reference, because a
+The memory workflow rejects a mutable tag in a sandbox image reference, because a
 memory checkpoint records the image it was taken from. So the runtime image needs
 an `@sha256:` reference even when it never went through a registry:
 
@@ -330,8 +336,8 @@ healthy and does not work.
 | `api.checkpoint.runscBinary` / `runscSha256` | chart values | the runsc actually installed on the node | Restore rejected after a runtime upgrade changes the binary |
 | `api.checkpoint.artifactRoot` | chart values | a directory that exists on the node | Checkpoint Jobs fail on a missing path |
 | `api.checkpoint.workerImage` | chart values | a digest, not a tag | Worker drifts under a saved memory image |
-| `runtime.image` | chart values | a digest reference | Sandbox creation returns 500 from the request schema |
-| `runtime.templateName` | chart values | `AGENTSPHERE_TEMPLATE_NAME` | Surfaces only when the first sandbox is requested |
+| `runtime.image` | chart values | a digest reference when memory lifecycle is enabled | Memory-managed Sandbox creation rejects mutable tags |
+| `runtime.templateName` | chart values | the template referenced by the configured WarmPool | A missing template prevents the pool from creating Sandboxes; application `templateID` does not select a different pool |
 | `runtime.workspace.mountPath` | chart values | the application's own persistent path, if it has one | An application that expects a persistent working directory silently gets an ephemeral one |
 | `api.warmPool` | chart values | the SandboxWarmPool in the same namespace | Every start is a cold start; no cross-namespace lookup |
 | `AGENTSPHERE_API_URL` | `codesphere-env` | the `sandbox-api` Service and its namespace | Application cannot create sandboxes at all |
@@ -346,33 +352,31 @@ healthy and does not work.
 
 ## Validated reference environment
 
-The installation these instructions were written against, recorded as versions,
-tags, digests and checksums. Host addresses, credentials and kubeconfigs are
-deliberately excluded, as elsewhere in this repository.
+The recorded reference is now the [55 baseline `55-20261004`](baseline.md),
+commit `48eb265e`. Its [version lock](../archive/baseline-55-20261004.json)
+records the cluster, controller, application, monitoring and resolved image
+content. Exact environment values are in the private local bundle described there.
 
-| Layer | Recorded |
-| --- | --- |
-| Cluster | kind v0.33.0, Kubernetes v1.37.0, containerd 2.3.4, Debian 13 (trixie), kernel 6.17.0 amd64; one control-plane node, `agent-sandbox-control-plane` |
-| Runtime | RuntimeClasses `gvisor` → `runsc` and `gvisor-l2` → `runsc-l2`; runsc at `/var/local/gvisor-cr/runtime/current/runsc`, sha256 `048b89aada69dc3333422e139d6e9d02f8ab06bda52398060e0fbdacca00074c`; shim `/var/lib/gvisor-ckpt/runtime-l2/containerd-shim-runsc-v1`; `artifactRoot` `/var/lib/gvisor-ckpt/checkpoints` on a dedicated 878 GiB filesystem |
-| Controller | chart `agent-sandbox-0.1.0`, image `registry.k8s.io/agent-sandbox/agent-sandbox-controller:v0.5.4`, `controller.extensions=true`, `metrics.serviceMonitor.enabled=true` |
-| xsphere | chart 0.2.0; `sandbox-api:connect-wait-20260929`, `sandbox-router:xsphere-dev`, Edge nginx 1.27.0; template `xsphere-runtime-template`, pool `xsphere-warmpool`; runtime image `codesphere-runtime@sha256:3be45182…`; checkpoint worker `sandbox-api@sha256:eaef002e…`; Edge TLS on with a self-signed wildcard certificate |
-| Application | backend `codesphere/backend:206-20260923-1c68ce4f`, frontend `codesphere/frontend:206-20260921-kind55`; Postgres 16.8, Redis 7-alpine, MinIO `RELEASE.2025-09-07T16-13-09Z`, mc `RELEASE.2025-08-13T08-35-41Z` |
-| Monitoring | kube-prometheus-stack 89.2.2, Prometheus Operator v0.93.1, 15-day retention; ServiceMonitors for the controller, `sandbox-api` and `sandbox-router`; four dashboards in the Grafana `xsphere` folder; etcd, controller-manager, scheduler, kube-proxy and Alertmanager disabled |
+The earlier version table has been superseded by that lock. Generic values in this
+guide and `xsphere-values.example.yaml` remain examples for a new installation;
+they do not reconstruct 55 unchanged. This documentation update did not rerun
+installation or business-session restore tests.
 
 ## Known drift
 
-Where the reference environment differs from what these files describe. Listed
+Where the recorded reference environment differs from what these files describe. Listed
 rather than folded into the manifests: some of it is a temporary fix, some is a
 defect, and none of it should be reproduced silently.
 
 - **The application images are private builds.** `YOUR_CODESPHERE_BACKEND_IMAGE`
   and `YOUR_CODESPHERE_FRONTEND_IMAGE` cannot be filled in from this repository.
-  Everything else in the stack builds from source here.
+  API, controller and Router source is available here; gVisor source is external,
+  and the private runtime base-image build still needs its own provenance.
 - **A hotfix ConfigMap overrides application source.**
-  `codesphere-backend-hotfix` is mounted over a single backend file to add
-  path-style addressing for MinIO. It is deliberately not in `app.yaml`: the fix
-  belongs in the image, and the mount is lost — correctly — the next time the
-  image is rebuilt.
+  `codesphere-backend-hotfix` is mounted over a single backend file. The exact
+  mounted file is preserved in the private baseline bundle and is not in
+  `app.yaml`. Rebuilding the image does not remove a Deployment's volume mount;
+  removing this override requires a separate deployment change after integration.
 - **Two mechanisms for the self-signed certificate are active at once.** Besides
   `AGENTSPHERE_VERIFY_SSL=false`, the backend also mounts a
   `sandbox-edge-ca-bundle` Secret and sets `SSL_CERT_FILE`. Either approach works
@@ -387,12 +391,11 @@ defect, and none of it should be reproduced silently.
   intended template genuinely differed from the one being used.
 - **The workspace volume is unused by this application.** Its project directory
   (`AGENTSPHERE_PROJECTS_BASE_DIR`) sits outside the template's `/data` mount,
-  and both that volume and the backend's own PVC are empty; project and user
-  state lives in the MinIO bucket instead. So the per-sandbox 10 GiB PVC costs
-  storage and buys nothing here. This is worth knowing before sizing a warm pool,
-  and worth leaving alone otherwise: the path is not a persistence mechanism, and
-  moving it onto the workspace volume would change the filesystem under it — a 9p
-  gofer mount under gVisor — for an integration that currently works.
+  and the 2026-09-29 inspection found both that volume and the backend's own PVC
+  empty, with project and user state in MinIO instead. The baseline capture did
+  not recheck or back up those contents. Account for this when sizing a warm pool.
+  Moving the project directory onto the workspace volume would change the
+  filesystem under it to a 9p gofer mount under gVisor and needs separate validation.
 - **The xsphere stack there is not a Helm release.** It was applied with
   `helm template | kubectl apply`, so the objects carry Helm labels that no
   release owns. Helm cannot adopt them without an explicit migration.

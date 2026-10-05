@@ -1,5 +1,9 @@
 # Frozen 55 Baseline
 
+[Product entry](../README.md). The frozen commit is `48eb265e` on
+`baseline/55-20261004`; later documentation and development can live on other
+branches without changing that reference.
+
 `55-20261004` identifies the AMD64 installation observed on 2026-10-04. The
 [lock](../archive/baseline-55-20261004.json) and
 [source checksums](../archive/baseline-55-20261004.sha256) belong to the Git commit
@@ -46,7 +50,8 @@ proof that a registry can serve it; no registry retrieval or image export was do
 
 ## Check the Source and Local Bundle
 
-From the repository root, at the baseline commit:
+From the repository root, at the baseline commit `48eb265e` (not a later
+documentation or development revision):
 
 ```sh
 make -C xsphere baseline-check
@@ -58,7 +63,8 @@ pass `SHA256SUM=sha256sum`. The second command additionally requires
 `xsphere/local/baseline-55-20261004/`, which is gitignored and restricted locally.
 Missing or modified files fail verification. These checks are intentionally
 separate from `check`: future source development must not rewrite historical
-checksums to keep this old snapshot passing.
+checksums to keep this old snapshot passing. The source list includes documentation,
+so documentation edits can also make these historical checks fail on a later tree.
 
 The lock's `localBundle.files` records hashes for the bundle, including its
 `SHA256SUMS` file. The repository checksum list also checks those local paths when
@@ -133,3 +139,31 @@ and memory artifacts remain local to one node. No Secret, data or memory backup
 is part of this snapshot, so it cannot restore an existing stateful session by
 itself. Runtime/image availability, actual business-session restore validation,
 production access controls and data recovery remain separate delivery work.
+
+## ARM64 Counterpart: sanjxmgmt
+
+On 2026-10-06 (Asia/Shanghai), the existing sanjxmgmt installation was aligned as
+`sanjxmgmt-55-arm64-20261006`. See the
+[version lock](../archive/baseline-sanjxmgmt-55-arm64-20261006.json) and
+[rollout and verification record](../archive/verification-sanjxmgmt-55-arm64-20261006.md).
+
+The API uses the same `48eb265e` source, the controller uses official v0.5.4 ARM64,
+and Router is built from the observed 55 revision `afc6c6a`. The runtime overlay
+adds the same envd supervisor and recovery hook while retaining sanjxmgmt's business
+daemon, envd binary, workspace mount and existing gVisor combination. CodeSphere
+frontend/backend and data services retain their existing ARM64 versions; this is
+a sandbox integration alignment, not a replacement of their private application source.
+
+At the commit introducing this ARM64 lock, verify with:
+
+```sh
+make -C xsphere baseline-check BASELINE=sanjxmgmt-55-arm64-20261006
+make -C xsphere baseline-local-check BASELINE=sanjxmgmt-55-arm64-20261006
+```
+
+The private bundle is `xsphere/local/baseline-sanjxmgmt-55-arm64-20261006/`.
+It contains exact changed-component configurations, rollback patches, build inputs
+and verification evidence. Generic chart values cannot reproduce the retained
+legacy FUSE/privileged template fields without adapting that profile. Existing
+claims keep their original template and image; the new base applies to newly
+created sandboxes. No x86 checkpoint or image is used as an ARM64 artifact.

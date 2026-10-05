@@ -1,112 +1,74 @@
 # xsphere
 
-Private development integration, version 0.2.0. The long-lived `product/xsphere`
-branch of `Axpz/agent-sandbox` is the single engineering portal: source, builds,
-runtime references, deployment, verification and records start here. It is not an upstream
-agent-sandbox release or a production-readiness claim.
+xsphere 的日常开发与运维从这里开始。暂不拆分仓库；产品集成集中在 `xsphere/`，
+仓库根目录的 agent-sandbox controller、CRD 和 Router 保留原样，作为依赖使用。
 
-The Helm chart is the version source: bump `deploy/chart/Chart.yaml` for each
-xsphere release, keep `version` and `appVersion` aligned, and tag it
-`xsphere/vX.Y.Z`. The sandbox-api package is private and has no separate release.
+## 现在以哪个版本为准
 
-The [55 baseline](docs/baseline.md), `55-20261004`, freezes the observed AMD64
-installation and its matching source. It is a local snapshot of the 0.2.0 line,
-not a new chart release. Its lock distinguishes running image content from image
-tags, and records the private configuration bundle and remaining external artifacts.
+以 **55 在 2026-10-04 固化的实际版本 `55-20261004`** 为依据：
+基线分支 `baseline/55-20261004`，提交 `48eb265e`，chart 版本 `0.2.0`。
+这是一次部署快照，后续文档整理和开发不改写它。
 
-## Naming and Ownership
+- [基线说明](docs/baseline.md)：实际运行内容、校验方法、复现条件和未完成事项。
+- [版本清单](archive/baseline-55-20261004.json)：镜像内容摘要、运行时校验值及来源。
+- [sanjxmgmt ARM64 对齐记录](archive/verification-sanjxmgmt-55-arm64-20261006.md)：
+  同一 API 源码与 controller/Router 版本，保留 ARM64 业务启动方式及环境配置。
+- 精确环境配置在本机忽略目录 `local/baseline-55-20261004/`；
+  旧 `local/values-55.yaml` 和通用示例都不是这次基线的配置来源。
 
-| Name | Responsibility | Source |
-| --- | --- | --- |
-| xsphere | Product, deployment configuration and verification records | This directory |
-| sandbox-api | E2B-compatible lifecycle API backed by Kubernetes resources | [sandbox-api/](sandbox-api/) |
-| agent-sandbox-controller | Reconcile Sandbox, Claim, Template and WarmPool | Existing repository-root code and [Helm chart](../helm/) |
-| sandbox-router | Forward requests to the selected Sandbox | Existing [Go Router](../sandbox-router/) |
-| sandbox-edge | Adapt SDK headers and wildcard hostnames to Router headers; ensure the target Sandbox is running (via sandbox-api `connect`) before forwarding | [Deployment chart](deploy/chart/) |
-| runsc + shim | Sandbox isolation and optional memory restore | External `Axpz/gvisor` source; [pinned version and integration notes](runtime/) |
+55 使用 AMD64、gVisor 和已启用的内存暂停/恢复路径；API 默认配置仍是保留 PVC、重建 Pod。
+基线采集核对了源码、配置和镜像内容，没有重新执行业务会话恢复验收。
 
-`agentsphere-gateway` was the old repository name. The process, package, ownership
-labels and Kubernetes Service were already named `sandbox-api`, so that name stays.
-No API route, SDK field or `AGENTSPHERE_*` environment variable is renamed.
+## 主干由什么组成
 
-gVisor source and patches are maintained in the external repository. This portal
-links to a fixed commit and its verification limits; it does not duplicate runtime
-build or installation tools.
+```text
+CodeSphere / SDK → sandbox-api → Kubernetes 资源 → agent-sandbox controller
+                                                   ↓
+浏览器 / SDK → sandbox-edge → sandbox-router → Sandbox（envd + 业务进程）
+                                                   ↓
+                                              gVisor 运行时
+```
 
-## Local Checks
+| 需要处理什么 | 入口与边界 |
+| --- | --- |
+| 创建、暂停、恢复、连接沙箱 | [sandbox-api/](sandbox-api/)：产品 API 与内存生命周期逻辑 |
+| Edge、沙箱模板、配置与看板 | [deploy/chart/](deploy/chart/)：xsphere Helm chart |
+| CodeSphere 接入及业务容器启动脚本 | [deploy/codesphere/](deploy/codesphere/)：集成文件，私有应用完整源码不在这里 |
+| controller、CRD、Router | 复用仓库根目录实现；当前整理不修改这些上游组件 |
+| runsc 与定制 shim | [runtime/](runtime/)：外部 `Axpz/gvisor` 的版本与验证记录，源码在外部仓库 |
 
-Requirements: Bun 1.3.5, Helm 3.16.4 and Python 3.11+.
-Docker is optional for the image target. Run from the repository root:
+Postgres、Redis、MinIO 属于 CodeSphere 应用配套服务。历史实验与验证证据保留在
+[archive/](archive/)，日常操作从下列入口开始。
+
+## 日常操作去哪里
+
+| 目的 | 阅读入口 |
+| --- | --- |
+| 访问现有 55 环境 | [55 访问说明](docs/access-55.md)、[监控说明](deploy/monitoring/) |
+| 理解暂停、恢复及 Edge 自动唤醒 | [生命周期说明](docs/lifecycle.md) |
+| 修改 API | [API 开发说明](sandbox-api/README.md) |
+| 在新环境部署 xsphere chart | [部署说明](docs/deployment.md) |
+| 从节点到应用搭建完整环境 | [完整搭建说明](docs/bootstrap.md) |
+
+本地需要 Bun 1.3.5、Helm 3.16.4、Python 3.11+。在仓库根目录运行：
 
 ```sh
 make -C xsphere install
 make -C xsphere check
 make -C xsphere render
-make -C xsphere image
 ```
 
-`check` runs lint, TypeScript checking, offline contract/configuration/chart tests,
-and a Bun build, plus image-discovery regression tests. It does not
-contact Kubernetes. `render` prints product manifests; `controller-render` uses
-the existing root controller chart. gVisor installation is a separate node operation,
-not a product Make target or Helm action. Helm may warn about the
-permissions of `/dev/null`, used as its offline kubeconfig; no credential file is read.
+`check` 执行离线检查、测试和构建；`render` 只输出清单，默认使用开发示例配置。
+部署前按部署说明选择环境专用 values；本机配置放在被 Git 忽略的 `xsphere/local/`。
+镜像构建使用 `make -C xsphere image`，需要 Docker。
 
-The default dev profile uses locally built images, keeps all Services ClusterIP,
-and leaves existing Templates/WarmPools untouched. See [deployment](docs/deployment.md)
-before installing anything. Put environment-specific values under `xsphere/local/`
-(gitignored), not in the shared defaults.
+## 尚未完成的部分
 
-[deployment](docs/deployment.md) covers this chart alone. To reproduce the whole
-stack elsewhere — node prerequisites, controller, sandbox stack, an application
-with its backing services, monitoring and browser access — follow
-[bootstrap](docs/bootstrap.md), which also records the environment it was
-validated against and where that environment diverges from the committed files.
+- API-key 校验与完整的数据面授权尚未接入，目前面向可信客户端的私有开发环境。
+- 当前支持单 namespace、单配置池；`templateID` 只是描述字段，不负责选择不同模板。
+- 内存快照和存储依赖单节点；历史快照清理、跨节点恢复及实际 chat/Pi 会话验收尚未完成。
+- 55 的后端 WebSocket 地址仍需匹配最终浏览器入口。基线未备份凭据、业务数据、
+  内存快照、镜像层或运行时二进制，不能单靠 Git 克隆恢复已有会话。
 
-Setting `monitoring.dashboards.enabled=true` renders the four dashboards under
-[deploy/chart/files/dashboards](deploy/chart/files/dashboards) as ConfigMaps for a
-Grafana sidecar: sandbox overview, single-sandbox drill-down, control plane, and
-snapshots with the warm pool. The chart installs no Grafana, Prometheus or
-exporters. [deploy/monitoring/](deploy/monitoring/) explains how to open them and
-documents each dashboard's measurement boundaries and known blind spots.
-
-`controller-build`, `router-build`, `controller-image`, `router-image` and `images`
-reuse existing source and Dockerfiles through the same Make entry. The root image
-scanner skips `xsphere/`; the root Docker context excludes it so local configuration,
-dependencies and build outputs do not enter upstream builds.
-
-## Current Boundary
-
-- The API's default pause/resume preserves PVC data and recreates the Pod. The
-  opt-in memory lifecycle and separately tested manual runtime workflow are
-  distinguished in [lifecycle](docs/lifecycle.md). The API save/stop path is deployed
-  in the private installation. Its normal memory path has been verified
-  through the deployed business Gateway/SDK; chat/Pi session acceptance remains pending.
-- API-key enforcement and end-to-end data-plane authorization are not integrated.
-  The chart refuses to render without explicit private-development opt-in. This
-  acknowledgement is not an authentication or network-isolation mechanism.
-- sandbox-edge transparently resumes a suspended target before forwarding, by
-  calling sandbox-api's existing `connect` route as an `auth_request` subrequest
-  on every proxied request. See [lifecycle](docs/lifecycle.md) for the mechanism
-  and its current limitations (no service credential yet; non-2xx/401/403
-  responses from `connect` collapse to a generic 502/500).
-- One namespace, one configured pool and trusted clients are the supported baseline.
-  `templateID` is currently descriptive, not a multi-template routing table.
-- No controller, node runtime or VM has been changed by this implementation work.
-  The explicitly approved rollout updated the existing API and business template;
-  previously claimed Sandboxes retain their original configuration and PVCs.
-
-## Next Increments
-
-1. After the completed Gateway/SDK memory check, jointly validate the actual chat/Pi
-   session workflow. Do not substitute a `kubectl exec` background
-   process for the business workload: gVisor kills exec-origin processes on restore.
-2. Keep Router and Codesphere unchanged; artifact retention is a later small increment.
-3. Before exposing to untrusted clients, finish tenant authorization, safe metadata
-   handling, data-plane credentials, TLS and network policy. Pin published image
-   digests and define artifact retention and supported runtime combinations.
-
-Detailed past evidence and exclusions live in [archive/](archive/). Those results
-must not be reported as newly executed tests of this product chart.
-The [initial product verification](archive/verification-20260913.md) records current
-checks and deployment gates separately.
+发布版本由 [Chart.yaml](deploy/chart/Chart.yaml) 管理：`version` 与 `appVersion`
+保持一致，正式发布使用 `xsphere/vX.Y.Z` 标签；私有 sandbox-api 包不单独发布。

@@ -1,0 +1,493 @@
+{
+  "capturedAt": "2026-10-05T16:22:38.699112+00:00",
+  "baseline": "sanjxmgmt-55-arm64-20261006",
+  "alignedTo": "55-20261004",
+  "productSourceCommit": "48eb265e36ebbac7e797299ebe1dd208bc53eb7d",
+  "routerSourceCommit": "afc6c6a7a7fede04e599d907595cb6d1292677aa",
+  "chartVersion": "0.2.0",
+  "platform": {
+    "architecture": "arm64",
+    "kernelVersion": "6.8.0-139-generic",
+    "kubeletVersion": "v1.36.1",
+    "containerRuntimeVersion": "containerd://2.3.1",
+    "osImage": "Debian GNU/Linux 13 (trixie)"
+  },
+  "components": [
+    {
+      "name": "agent-sandbox-controller",
+      "namespace": "agent-sandbox-system",
+      "reference": "kind.local/agent-sandbox-controller@sha256:46e2bcca361a6394ec118982c77d4644942c57467ecf6649558724a4aa5e532c",
+      "podReportedImageID": "sha256:46e2bcca361a6394ec118982c77d4644942c57467ecf6649558724a4aa5e532c",
+      "targetDigest": "sha256:46e2bcca361a6394ec118982c77d4644942c57467ecf6649558724a4aa5e532c",
+      "runningManifestDigest": "sha256:46e2bcca361a6394ec118982c77d4644942c57467ecf6649558724a4aa5e532c",
+      "configDigest": "sha256:c0576ca4299caf870fcdf725e221a73900a19419a2e87790f7029766012004f8",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    },
+    {
+      "name": "sandbox-api",
+      "namespace": "sandbox",
+      "reference": "kind.local/sandbox-api@sha256:0f53d6af6d4a2f6b87d4f5c7f614e31a01d4f3a44d7066a9ede6fdf1bc24bce0",
+      "podReportedImageID": "sha256:731612158929784e785b5f4a0946853ac4d68866db05c01aa6ab8032986d1634",
+      "targetDigest": "sha256:0f53d6af6d4a2f6b87d4f5c7f614e31a01d4f3a44d7066a9ede6fdf1bc24bce0",
+      "runningManifestDigest": "sha256:c061866f4dad06fe687dae6cb4cb5739a50ae3762ab64156a73cd4084433ba7a",
+      "configDigest": "sha256:51807e0e96cfbce999a1f822070761e1f762e0d5c4a88be2541a1f821fc7422e",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    },
+    {
+      "name": "sandbox-edge",
+      "namespace": "sandbox",
+      "reference": "docker.m.daocloud.io/library/nginx:alpine",
+      "podReportedImageID": "sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913",
+      "targetDigest": "sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913",
+      "runningManifestDigest": "sha256:57744b8fa99abc438b1fbde6bd69e4270d0984ccfdee60c661ec22243047373a",
+      "configDigest": "sha256:c961b530972080b857d1f447363cc411023cf31727e06e14aba0f76cebee6aa5",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    },
+    {
+      "name": "sandbox-router",
+      "namespace": "sandbox",
+      "reference": "kind.local/sandbox-router@sha256:ed00c09d407dc0ee66cb70386ccdd85a9b3a5f1c1fa5f6a93c8555bba0e7553d",
+      "podReportedImageID": "sha256:16af273afdab40506a2f9b044f5e9bc703c6507ecbb2c5546ab57ec83034f1fc",
+      "targetDigest": "sha256:ed00c09d407dc0ee66cb70386ccdd85a9b3a5f1c1fa5f6a93c8555bba0e7553d",
+      "runningManifestDigest": "sha256:7662ed2ba97434c0c50b4df37c85c06cd4ee43e0f67a7d5e884e840edcc1b3c8",
+      "configDigest": "sha256:33277fe1ea574ee33142b7e63bfa3c4a040975776d55f95e381f734751d50561",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    },
+    {
+      "name": "codesphere-backend",
+      "namespace": "default",
+      "reference": "kind.local/codesphere-new:arm64-qwen-responses-4096-20260831",
+      "podReportedImageID": "sha256:d2178a61d214471a0033977e281e3f88b1ec289b3a24f53e6a1dfc99ab9ba1c0",
+      "targetDigest": "sha256:9192d638387ea71ee1a13c475eb3978432cf6548e4ce4772523c58775c5d4ed7",
+      "runningManifestDigest": "sha256:e08aad3371cce1d0bfc3fdaf1ab3770deb680711eda41191fc8eb34069ca6ec9",
+      "configDigest": "sha256:d53c3a68e6ae9bf9c3f342077b94999406ff8eabe74dfa87d2efaacc84c56ad9",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    },
+    {
+      "name": "codesphere-frontend",
+      "namespace": "default",
+      "reference": "kind.local/codesphere-frontend-v2:arm64-dev-auth-bypass-20260901",
+      "podReportedImageID": "sha256:4f6cf92ccae7a2827d68fe1ff0c771d964f2b3bcf7c99da0768a4b796ad0f5ee",
+      "targetDigest": "sha256:30fee0c503a4f0eeb69fc10584b82dcbb53ae88dca04484ad1f62775ec91b9d9",
+      "runningManifestDigest": "sha256:a42f5fd7558816bdc8733179bdc543317878968a77ef2a129dff0e384da6fb6d",
+      "configDigest": "sha256:23aaadcff194822da32f042d7a5622864064ce0a690856d1daf6962072e4433b",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    },
+    {
+      "name": "business-runtime",
+      "namespace": "sandbox",
+      "reference": "kind.local/sandbox-codesphere-pi-envd@sha256:1fcf5d92ee76ec80d0f04597b8c37fe2bdadc4c3e92d1adb026c97365d479e77",
+      "podReportedImageID": null,
+      "targetDigest": "sha256:1fcf5d92ee76ec80d0f04597b8c37fe2bdadc4c3e92d1adb026c97365d479e77",
+      "runningManifestDigest": "sha256:05176d85e288784a13520fe2365d89ee0bf82274420d9d031cbbed23aec3c244",
+      "configDigest": "sha256:a1bc0d99f67dcccf043f9d8ddb290ab13244b3765272255b65e1938d89f829de",
+      "platform": "linux/arm64",
+      "availability": "Present in sanjxmgmt node content store; no image publication or disaster-recovery backup performed."
+    }
+  ],
+  "runtime": {
+    "runscSha256": "56f69300f1368c96a4a7c3e88510af3b0bd2632e20d46b70b7b0b4d2cc2160b4",
+    "shimSha256": "b641d3cb6a69d5c9a585510d270401de9668af207e0c06858f662dbef74b9550",
+    "release": "release-20260817.0"
+  },
+  "profile": {
+    "runtimeClassName": "gvisor-l2",
+    "workspaceMountPath": "/home/user/codesphere-app/data/projects",
+    "securityContext": {
+      "capabilities": {
+        "add": [
+          "SYS_ADMIN",
+          "SYS_RESOURCE"
+        ]
+      },
+      "privileged": true
+    },
+    "nodeSelector": {
+      "kubernetes.io/arch": "arm64",
+      "kubernetes.io/hostname": "agent-sandbox-control-plane"
+    },
+    "artifactRoot": "/var/local/infra-data/gvisor-cr/checkpoints",
+    "runscBinary": "/var/local/infra-data/gvisor-cr/runtime/20260817.0-restore-b641d3cb6a69/runsc",
+    "envdVersion": "0.6.9",
+    "domain": "gettokenflare.com",
+    "warmPool": "codesphere-warmpool",
+    "templateName": "codesphere-runtime-template"
+  },
+  "apiSourceFiles": [
+    {
+      "path": "src/app.ts",
+      "sha256": "9082c634c5ec1b18e9d4ad19091d86cf3a57a7e792a111c3a12da3ac3068b439"
+    },
+    {
+      "path": "src/checkpoint/jobs.ts",
+      "sha256": "29f29897f4ea2c030c307ca695998c1bb005e52017f717d1e04efb9acf8004b4"
+    },
+    {
+      "path": "src/checkpoint/lifecycle.ts",
+      "sha256": "bb300b1c13adcaa2d48c2aabccc80a30112a1e4b9efd567c08ec840e91d262c0"
+    },
+    {
+      "path": "src/checkpoint/model.ts",
+      "sha256": "40b722c6953e10831fa12b97cf9c9e33f793bcc222221e17827399f77d7bdb3f"
+    },
+    {
+      "path": "src/checkpoint/worker.ts",
+      "sha256": "41b563d35291486d72abf7ef3978c9675ff8c68c620d1dfe689b609719fc5de3"
+    },
+    {
+      "path": "src/config.ts",
+      "sha256": "033c4a5382e273dc5a57f2c9a836664adb8ed46eac5e4453dbc9ad62fea84b52"
+    },
+    {
+      "path": "src/contract/routes.ts",
+      "sha256": "9fc93fcaa245f1631892b7f98c8b7ce26f026806792c0107191988ce2f896895"
+    },
+    {
+      "path": "src/contract/schemas.ts",
+      "sha256": "523523b1863994e569a7bed5a0ed1df34636df1e65d5a2d442ffde2fedd3f355"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "e53700545880c8633a95c81de488eea0f0387f66e1e314935c57dbc16c6701df"
+    },
+    {
+      "path": "src/k8s/backend.ts",
+      "sha256": "f3e1d7c240bd6891c1f955ee8c7b558fe2a5d46fe5c3dd556f1b3f01134ec7f0"
+    },
+    {
+      "path": "src/k8s/client.ts",
+      "sha256": "8003e03cabfdefb879863e9b25e5d5442e4861cb4b21abf8a368363d97919e38"
+    },
+    {
+      "path": "src/logger.ts",
+      "sha256": "8bf6885b3440ed0b1be618a5a48712dd84e9786f67e00bdef27b3ab636b663a2"
+    },
+    {
+      "path": "src/metrics.ts",
+      "sha256": "6860952099b08cddff3e5f7d2c3ea25ee6593f18b0de59c7619fbc5a7294775b"
+    },
+    {
+      "path": "package.json",
+      "sha256": "aed5744305309c36fedaf64552fa38171afcc433f5fcada8bc121b8b66f51bf2"
+    },
+    {
+      "path": "bun.lock",
+      "sha256": "c7eada206aa5a59416431c5c07acc904201b0de755382d299f8c3dd385468c35"
+    }
+  ],
+  "edgeConfigSha256": "77de532855f3cf0a766a49432f1818f54b750fc436547329a19b008c16c3aed2",
+  "overlayDockerfileSha256": "f2a6aee96715739c3afe949f283934b9263e05c9783a3e9b68814b3cd9a82358",
+  "routerDockerfileSha256": "7623f05b8bf8dae211c523bfd28c880e77de8b9b84ea7fbf7325550fa7b47887",
+  "verification": {
+    "sandboxID": "codesphere-warmpool-jnlz7",
+    "sdkResumeMemoryContinuous": true,
+    "concurrentEdgeResumeMemoryContinuous": true,
+    "randomMemoryBytes": 8388608,
+    "memoryHash": "71b8ace16a3a528ba0a5bb78eeb5784261acb725defbba96be3a2ff27d185b73",
+    "bootID": "e698c3a9-fd84-4951-9273-621e9bbc7735",
+    "counterBefore": 1012,
+    "counterContinued": 1015,
+    "containerRestarts": 0,
+    "sameVolumes": true,
+    "protectedExistingSandboxAndClaimUIDCount": 22,
+    "coldCreateSeconds": 7.944,
+    "sdkResumeSeconds": 34.209,
+    "concurrentEdgeResumeSeconds": 33.727,
+    "disposableResourcesCleaned": true,
+    "offlineChecks": {
+      "bunTests": 50,
+      "pythonTests": 21,
+      "typecheck": true,
+      "build": true,
+      "helmLint": true,
+      "preExistingBiomeWarnings": 7
+    },
+    "businessChatPiAcceptancePerformed": false
+  },
+  "schemaVersion": 1,
+  "status": "Verified private ARM64 sandbox integration alignment; local baseline, not a production certification.",
+  "buildInputs": [
+    {
+      "reference": "docker.m.daocloud.io/oven/bun:1.3.5-slim",
+      "imageID": "sha256:6111acec4c5a703f2069d6e681967c047920ff2883e7e5a5e64f4ac95ddeb27f",
+      "repoDigests": [
+        "docker.m.daocloud.io/oven/bun@sha256:6111acec4c5a703f2069d6e681967c047920ff2883e7e5a5e64f4ac95ddeb27f"
+      ],
+      "architecture": "arm64"
+    },
+    {
+      "reference": "docker.m.daocloud.io/library/golang:1.26.4-bookworm",
+      "imageID": "sha256:b305420a68d0f229d91eb3b3ed9e519fcf2cf5461da4bef997bf927e8c0bfd2b",
+      "repoDigests": [
+        "docker.m.daocloud.io/library/golang@sha256:b305420a68d0f229d91eb3b3ed9e519fcf2cf5461da4bef997bf927e8c0bfd2b"
+      ],
+      "architecture": "arm64"
+    },
+    {
+      "reference": "gcr.m.daocloud.io/distroless/static-debian13:nonroot",
+      "imageID": "sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7",
+      "repoDigests": [
+        "gcr.m.daocloud.io/distroless/static-debian13@sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7",
+        "m.daocloud.io/gcr.io/distroless/static-debian13@sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7"
+      ],
+      "architecture": "arm64"
+    },
+    {
+      "reference": "kind.local/sandbox-codesphere-pi-envd:arm64-private-prod-374321f-d146d24",
+      "imageID": "sha256:1d53dc7075933f78bd5dcad3fd9b1c83ad11129ce3cbec68953dfbca6b79e1b5",
+      "repoDigests": [
+        "kind.local/sandbox-codesphere-pi-envd@sha256:1d53dc7075933f78bd5dcad3fd9b1c83ad11129ce3cbec68953dfbca6b79e1b5"
+      ],
+      "architecture": "arm64"
+    }
+  ],
+  "retainedComponents": [
+    "CodeSphere backend and frontend",
+    "PostgreSQL, Redis and SeaweedFS",
+    "gVisor release-20260817.0 ARM64 runsc and patched shim",
+    "existing claimed Sandboxes, PVCs and checkpoints",
+    "legacy workspace/FUSE permissions and frontend/lite routes"
+  ],
+  "runtimeOverlay": {
+    "baseImageID": "sha256:1d53dc7075933f78bd5dcad3fd9b1c83ad11129ce3cbec68953dfbca6b79e1b5",
+    "dockerfile": "xsphere/deploy/codesphere/runtime/Dockerfile.overlay",
+    "sha256": "f2a6aee96715739c3afe949f283934b9263e05c9783a3e9b68814b3cd9a82358",
+    "businessScriptsAndEnvdBinaryUnchanged": true
+  },
+  "localBundle": {
+    "path": "xsphere/local/baseline-sanjxmgmt-55-arm64-20261006",
+    "files": [
+      {
+        "path": "Dockerfile.overlay",
+        "sha256": "f2a6aee96715739c3afe949f283934b9263e05c9783a3e9b68814b3cd9a82358"
+      },
+      {
+        "path": "Dockerfile.router",
+        "sha256": "7623f05b8bf8dae211c523bfd28c880e77de8b9b84ea7fbf7325550fa7b47887"
+      },
+      {
+        "path": "README.md",
+        "sha256": "166f066773a753207268c4e022996976489f3136dc388eb2cf02a45453b725b6"
+      },
+      {
+        "path": "agent-sandbox-controller-final.json",
+        "sha256": "1457ddc43bff390bffddc0246c51f628174cdfaa7a17a1aabce767b7713c5341"
+      },
+      {
+        "path": "agent-sandbox-controller-image.json",
+        "sha256": "9f43d656bb68cd6122e183a3ca3c5ba4bd6d18907e97e2f4b1560ee87cae0096"
+      },
+      {
+        "path": "agent-sandbox-controller-patch.json",
+        "sha256": "20e707f9aff2b14bc2501d7c97643bf2f58ee67210b4cbee22f812bf09541145"
+      },
+      {
+        "path": "agent-sandbox-controller-rollback.json",
+        "sha256": "6d59e06ce1299ebffde396f2dab4173ecefa6d45291269b9082e008cbea115e6"
+      },
+      {
+        "path": "api-image.json",
+        "sha256": "06c01ea68e35c36f2a29e9ad1f56d2bfca24fe4895c7c00a239a6e1ae4598501"
+      },
+      {
+        "path": "api-patch.json",
+        "sha256": "9b20e75883264d42471f26d573dfad5fed18daae2502eff26abf706d591ebdcf"
+      },
+      {
+        "path": "api-rollback.json",
+        "sha256": "48101cffc36f04f6c5745ce201cf44c0db43b7c5e4881351808e64f573389166"
+      },
+      {
+        "path": "base-script-hashes.txt",
+        "sha256": "7247370b7a0821ac9d7ee312d544bce0b313d4ffe6f13f4663c9cdce0053a270"
+      },
+      {
+        "path": "baseline-lock.json",
+        "sha256": "0417f5f5cb56f8c9e278fa262dce02ffd6ef230cb458fb86328658743813974c"
+      },
+      {
+        "path": "build-inputs.json",
+        "sha256": "e427471fcc692063cd45dbf8e1f13198df8e52d737a9321f1261790856068bfa"
+      },
+      {
+        "path": "capture-final.py",
+        "sha256": "103bdea92ea897846b488bc383fbcc6beba3669b05cf2bc40273eb65fb9a4a7a"
+      },
+      {
+        "path": "cleanup.json",
+        "sha256": "b4726befb57893487fe8d07556ffee719bfb525d71cb4e5b058b3c32506af982"
+      },
+      {
+        "path": "cold-create.json",
+        "sha256": "d1234c97ce11a745f9ac582ab28c056f38be1ab66116b0c27ad3e75d6479d6d4"
+      },
+      {
+        "path": "cold-pod.json",
+        "sha256": "51498e8ec574ef0410e71f55ee1a0aea1c16a0df79da3dd14a397cddfaf127a3"
+      },
+      {
+        "path": "controller-before.json",
+        "sha256": "9dce215328f975ceac4821e58b52cd81206efb25de4a548bf391c072b8ad9e8c"
+      },
+      {
+        "path": "controller-oci.json",
+        "sha256": "76f36bc8345d6022a2346116abc3d3dd914f52e4dde20c612c66460def3415e0"
+      },
+      {
+        "path": "deploy-before.json",
+        "sha256": "bebfea9e211f89131af879afdfcf1d780de5e475727a00feb1681bb8b4952af4"
+      },
+      {
+        "path": "edge-before.json",
+        "sha256": "cdfaa3614a98183b6391e6379864152b8b135d7c8111cdcdf92108c158cea66b"
+      },
+      {
+        "path": "edge-deploy-patch.json",
+        "sha256": "e12d02f658d20a273ffb88e8da05d99f1322bdd815facc027ad89a123b221159"
+      },
+      {
+        "path": "edge-deploy-rollback.json",
+        "sha256": "b270bd3435c99cc6cfa1993cccde9d5db2ef265f1d7fef4147f70b6ae24bbdfd"
+      },
+      {
+        "path": "edge-final.json",
+        "sha256": "8b8e1e50682a780a1e2630e404b59113c31834a6c3fb0939c362d803777bd31a"
+      },
+      {
+        "path": "edge-memory-after.json",
+        "sha256": "ff0c148d9ba3a498f6743339bd9bf70531800eddb8c36ef2db1502a36c2b4955"
+      },
+      {
+        "path": "edge-patch.json",
+        "sha256": "974f15ec41975803981f117608f4aa6418ccf23b82705a6541eedff00b5085af"
+      },
+      {
+        "path": "edge-rollback.json",
+        "sha256": "92bbecd836d230f995e2698a1dd2a2a3b796fe7470fdf4fee1effb4d2aecaca2"
+      },
+      {
+        "path": "existing-resources-check.json",
+        "sha256": "fd23ef5484a2055e994bf705728e718db80aaa35bc090a5a943a7234424b04f4"
+      },
+      {
+        "path": "existing-workloads-check.json",
+        "sha256": "66f6bf27b2fac36e04dd3307ca6bcf6a7e09f61dcceef39548d4ec2e1947dc17"
+      },
+      {
+        "path": "gateway_check.py",
+        "sha256": "e36bc0e88df5d74f53db4a14c9bcd35b1e751e2d7479661f783caf707bd293c6"
+      },
+      {
+        "path": "memory-continued.json",
+        "sha256": "8be4a9858bda22d317db2a9162e3be56957c9bc6b9995cbdd97882da01ba83d0"
+      },
+      {
+        "path": "memory_probe.py",
+        "sha256": "6610cf4ee9372c3680967fa754c4b0fabd6fb1effd7635abcab4b87f9fed89a8"
+      },
+      {
+        "path": "rollout-api.py",
+        "sha256": "b98c16253f57e4e5d79009c2e039252444569e67a8d28bc7a35652a41fea61e7"
+      },
+      {
+        "path": "rollout-shared.py",
+        "sha256": "89d5db30f07a7e4a9016acb6889aaaddd4e42c4b42f201273697e3163adebe9f"
+      },
+      {
+        "path": "rollout-template-edge.py",
+        "sha256": "bd3b41d7817ddfe2c33a3d3e5855593a637e27d5637afc8304afa869dd866664"
+      },
+      {
+        "path": "router-before.json",
+        "sha256": "ef8834a6d3cdad0acafcf4db1f77604374d967c5ada9187366f67d008a48741e"
+      },
+      {
+        "path": "runtime-config.json",
+        "sha256": "9f3424573aeebe1c54c7bca1e9109d7777b58ebb7cd8c521fc47df9ea929337a"
+      },
+      {
+        "path": "runtime-image.json",
+        "sha256": "6753fe960988fd2f656787774ea720c729da445955c727c055e87b98df5a5904"
+      },
+      {
+        "path": "runtime-script-hashes.txt",
+        "sha256": "f57c4b5b8df226a90d4b6e24967f61fa19983856b6cdd5dcc1f5ffa48d92efab"
+      },
+      {
+        "path": "sandbox-api-final.json",
+        "sha256": "d345cd9524e73b48f7fd12fde34d2965237b86842a94e169257ee7b5f109f156"
+      },
+      {
+        "path": "sandbox-edge-final.json",
+        "sha256": "090e373d119e96dc4c7f76c4056d1310ce541ca5fbf830991d6056e3d42826d4"
+      },
+      {
+        "path": "sandbox-router-final.json",
+        "sha256": "a0629f9b9c76f570cf31cb5b6c33e699008d0a6285910c5d7416517f41286809"
+      },
+      {
+        "path": "sandbox-router-image.json",
+        "sha256": "7884cce0dbbb78e506c85b9a9b5bb3bfba8fd9bbaff1e5376f9ddffb4940d892"
+      },
+      {
+        "path": "sandbox-router-patch.json",
+        "sha256": "2bdfb470d7c19579cb425df6cbd3247e548a3dc4b9476e91721027bc31c79830"
+      },
+      {
+        "path": "sandbox-router-rollback.json",
+        "sha256": "f47aabe848a04bb697ad588e184de9d2ac145a0a142f1193d7198e5432e29054"
+      },
+      {
+        "path": "sdk-memory-after.json",
+        "sha256": "ff0c148d9ba3a498f6743339bd9bf70531800eddb8c36ef2db1502a36c2b4955"
+      },
+      {
+        "path": "template-before.json",
+        "sha256": "ec78539211275ac0dec50e4aff192fbb72af48f3e4471789ef39cf44fbb8d6d2"
+      },
+      {
+        "path": "template-final.json",
+        "sha256": "44d5bf57420820420f6e5dd8703a15e6d33db97bde0a5d68bc44509afba7f0cc"
+      },
+      {
+        "path": "template-patch.json",
+        "sha256": "430c4ce30a05433fd91fcf143faf2ea2961bb5ca043f108a7c68422fa87cfcaf"
+      },
+      {
+        "path": "template-rollback.json",
+        "sha256": "8eef216d542617721da3d7d0de684cfa18d3828eee0f91f0df064ccd31f9fc07"
+      },
+      {
+        "path": "verification-summary.json",
+        "sha256": "f3452e502823a9d20519138c967680d8e025ab60564741c63ab21eb35ffd9835"
+      },
+      {
+        "path": "verified-memory-before.json",
+        "sha256": "ff0c148d9ba3a498f6743339bd9bf70531800eddb8c36ef2db1502a36c2b4955"
+      },
+      {
+        "path": "verify-before-shared.log",
+        "sha256": "5abbf5daf5f33542aa16fd7617abc3e30ef3e559b3e1b756c7234acf80532583"
+      },
+      {
+        "path": "verify.log",
+        "sha256": "72935334a06266f99e1c17fb5b73c77a13122a1bb4ce8bf8d23676b827d30106"
+      },
+      {
+        "path": "verify_remote.py",
+        "sha256": "16f905b94353a8668d021d2d408bb509ea89b9f4a6092b22bf32f13c56796ece"
+      },
+      {
+        "path": "SHA256SUMS",
+        "sha256": "7582763a295bdf7e5a20a472bec76aedd508fe7c1ff5f1a8b557919429c0ef56"
+      }
+    ],
+    "containsImageLayersOrMemoryDumps": false
+  }
+}

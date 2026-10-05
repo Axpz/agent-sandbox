@@ -1,0 +1,19 @@
+# Preserve an existing business runtime while adding the 55 envd recovery flow.
+# BASE_IMAGE must identify a verified image for the target architecture.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+USER root
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tini && \
+    rm -rf /var/lib/apt/lists/*
+
+# Older ARM64 images install envd here; retain their binary and business scripts.
+RUN test -x /usr/bin/envd && ln -s /usr/bin/envd /usr/local/bin/envd
+COPY entrypoint.sh /usr/local/bin/codesphere-entrypoint
+COPY envd-recover.sh /usr/local/bin/envd-recover
+RUN chmod 0755 /usr/local/bin/codesphere-entrypoint /usr/local/bin/envd-recover && \
+    sh -n /usr/local/bin/codesphere-entrypoint /usr/local/bin/envd-recover
+
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/usr/local/bin/codesphere-entrypoint"]
+CMD []

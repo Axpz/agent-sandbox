@@ -72,3 +72,8 @@ The [55 baseline](../docs/baseline.md) records the actual `release-20260817.0`
 AMD64 runsc and patched shim checksums observed on 2026-10-04. These are historical
 runtime artifacts, not binaries built from the newer source pin above. They remain
 external prerequisites; the baseline capture did not copy binaries or memory dumps.
+
+The [sanjxmgmt ARM64 alignment](../archive/verification-sanjxmgmt-55-arm64-20261006.md)
+retains the existing verified ARM64 runtime/shim, with its own recorded checksums.
+It updates the product API, Router, controller and container recovery integration;
+it does not promote the newer gVisor source pin or migrate x86 checkpoints.
