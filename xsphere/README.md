@@ -13,6 +13,8 @@ xsphere 的日常开发与运维从这里开始。暂不拆分仓库；产品集
 - [版本清单](archive/baseline-55-20261004.json)：镜像内容摘要、运行时校验值及来源。
 - [sanjxmgmt ARM64 对齐记录](archive/verification-sanjxmgmt-55-arm64-20261006.md)：
   同一 API 源码与 controller/Router 版本，保留 ARM64 业务启动方式及环境配置。
+- [CodeSphere 前后端 ARM64 对齐记录](archive/verification-sanjxmgmt-codesphere-55-arm64-20261006.md)：
+  后续应用升级，以 55 实际源码和前端产物为准，保留 sanjxmgmt 的用户与数据。
 - 精确环境配置在本机忽略目录 `local/baseline-55-20261004/`；
   旧 `local/values-55.yaml` 和通用示例都不是这次基线的配置来源。
 

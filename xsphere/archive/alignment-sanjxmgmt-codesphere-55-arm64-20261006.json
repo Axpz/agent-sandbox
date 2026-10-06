@@ -1,0 +1,409 @@
+{
+  "images": {
+    "codesphere-backend": "kind.local/codesphere-backend@sha256:1701a4a7cd86f1cf901466c654cfd19801fb77a8b8b135bec1490bbe8ba728ff",
+    "codesphere-frontend": "kind.local/codesphere-frontend@sha256:dea94b08bc4545d64c013c0b4a3375ce727b15f820b28869ea4c6a2d05ba0adc"
+  },
+  "frontendFiles": 232,
+  "frontendManifestSha256": "37f447e53495c8a0238cfbe280c2b2a071bf114e29fde859d627fbb10abbfe4e",
+  "backendFiles": 486,
+  "backendManifestSha256": "7866a6f3aed58dad05b3bac8f787fdf83af1ace74b36322256bd82dc9fbf66d8",
+  "dependencyCount": 81,
+  "existingResourceUIDsPreserved": 25,
+  "schemaVersion": 1,
+  "alignment": "sanjxmgmt-codesphere-55-arm64-20261006",
+  "reference": "55 actual running application files and frontend build artifacts, captured 2026-10-06",
+  "architecture": "linux/arm64",
+  "backendReferenceImage": "codesphere/backend:206-20260923-1c68ce4f",
+  "frontendReferenceImage": "codesphere/frontend:206-20260921-kind55",
+  "backendGitProvenance": "Closest private-prod commit f216d688b44befe7aa36de7acfe90e2692d62bc4; actual runtime includes _sandbox_assets.py hotfix and two additional auth0 modules. Runtime files, not commit alone, are the source of truth.",
+  "frontendGitProvenance": "Not established; reuse all 232 compiled files byte-for-byte from the running 55 Pod.",
+  "backendDependencyVersions": [
+    [
+      "Mako",
+      "1.3.12"
+    ],
+    [
+      "MarkupSafe",
+      "3.0.3"
+    ],
+    [
+      "PyJWT",
+      "2.13.0"
+    ],
+    [
+      "PyYAML",
+      "6.0.3"
+    ],
+    [
+      "Pygments",
+      "2.20.0"
+    ],
+    [
+      "SQLAlchemy",
+      "2.0.50"
+    ],
+    [
+      "agentsphere",
+      "2.1.5"
+    ],
+    [
+      "aioboto3",
+      "15.5.0"
+    ],
+    [
+      "aiobotocore",
+      "2.25.1"
+    ],
+    [
+      "aiofiles",
+      "25.1.0"
+    ],
+    [
+      "aiohappyeyeballs",
+      "2.6.2"
+    ],
+    [
+      "aiohttp",
+      "3.13.5"
+    ],
+    [
+      "aioitertools",
+      "0.13.0"
+    ],
+    [
+      "aiosignal",
+      "1.4.0"
+    ],
+    [
+      "alembic",
+      "1.18.4"
+    ],
+    [
+      "annotated-doc",
+      "0.0.4"
+    ],
+    [
+      "annotated-types",
+      "0.7.0"
+    ],
+    [
+      "anthropic",
+      "0.111.0"
+    ],
+    [
+      "anyio",
+      "4.13.0"
+    ],
+    [
+      "asyncpg",
+      "0.31.0"
+    ],
+    [
+      "attrs",
+      "26.1.0"
+    ],
+    [
+      "boto3",
+      "1.40.61"
+    ],
+    [
+      "botocore",
+      "1.40.61"
+    ],
+    [
+      "certifi",
+      "2026.5.20"
+    ],
+    [
+      "cffi",
+      "2.0.0"
+    ],
+    [
+      "click",
+      "8.4.1"
+    ],
+    [
+      "cryptography",
+      "48.0.0"
+    ],
+    [
+      "dependency-injector",
+      "4.49.0"
+    ],
+    [
+      "distro",
+      "1.9.0"
+    ],
+    [
+      "dockerfile-parse",
+      "2.0.1"
+    ],
+    [
+      "docstring_parser",
+      "0.18.0"
+    ],
+    [
+      "ecdsa",
+      "0.19.2"
+    ],
+    [
+      "fastapi",
+      "0.136.3"
+    ],
+    [
+      "frozenlist",
+      "1.8.0"
+    ],
+    [
+      "greenlet",
+      "3.5.1"
+    ],
+    [
+      "h11",
+      "0.16.0"
+    ],
+    [
+      "httpcore",
+      "1.0.9"
+    ],
+    [
+      "httptools",
+      "0.8.0"
+    ],
+    [
+      "httpx",
+      "0.28.1"
+    ],
+    [
+      "idna",
+      "3.16"
+    ],
+    [
+      "jiter",
+      "0.15.0"
+    ],
+    [
+      "jmespath",
+      "1.1.0"
+    ],
+    [
+      "jsonschema",
+      "4.26.0"
+    ],
+    [
+      "jsonschema-specifications",
+      "2025.9.1"
+    ],
+    [
+      "markdown-it-py",
+      "4.2.0"
+    ],
+    [
+      "mdurl",
+      "0.1.2"
+    ],
+    [
+      "msgpack",
+      "1.1.2"
+    ],
+    [
+      "multidict",
+      "6.7.1"
+    ],
+    [
+      "openai",
+      "2.43.0"
+    ],
+    [
+      "packaging",
+      "26.2"
+    ],
+    [
+      "pillow",
+      "12.2.0"
+    ],
+    [
+      "propcache",
+      "0.5.2"
+    ],
+    [
+      "protobuf",
+      "7.35.0"
+    ],
+    [
+      "pyasn1",
+      "0.6.3"
+    ],
+    [
+      "pycparser",
+      "3.0"
+    ],
+    [
+      "pydantic",
+      "2.13.4"
+    ],
+    [
+      "pydantic-settings",
+      "2.14.1"
+    ],
+    [
+      "pydantic_core",
+      "2.46.4"
+    ],
+    [
+      "python-dateutil",
+      "2.9.0.post0"
+    ],
+    [
+      "python-dotenv",
+      "1.2.2"
+    ],
+    [
+      "python-jose",
+      "3.5.0"
+    ],
+    [
+      "python-multipart",
+      "0.0.29"
+    ],
+    [
+      "redis",
+      "7.4.0"
+    ],
+    [
+      "referencing",
+      "0.37.0"
+    ],
+    [
+      "rich",
+      "15.0.0"
+    ],
+    [
+      "rpds-py",
+      "2026.6.3"
+    ],
+    [
+      "rsa",
+      "4.9.1"
+    ],
+    [
+      "s3transfer",
+      "0.14.0"
+    ],
+    [
+      "six",
+      "1.17.0"
+    ],
+    [
+      "sniffio",
+      "1.3.1"
+    ],
+    [
+      "starlette",
+      "1.1.0"
+    ],
+    [
+      "tqdm",
+      "4.68.3"
+    ],
+    [
+      "typing-inspection",
+      "0.4.2"
+    ],
+    [
+      "typing_extensions",
+      "4.15.0"
+    ],
+    [
+      "urllib3",
+      "2.7.0"
+    ],
+    [
+      "uvicorn",
+      "0.48.0"
+    ],
+    [
+      "uvloop",
+      "0.22.1"
+    ],
+    [
+      "watchfiles",
+      "1.2.0"
+    ],
+    [
+      "websockets",
+      "16.0"
+    ],
+    [
+      "wrapt",
+      "1.17.3"
+    ],
+    [
+      "yarl",
+      "1.24.2"
+    ]
+  ],
+  "siteAdaptation": "Local-session user ID is configurable via CODESPHERE_LOCAL_USER_ID, default local-user. sanjxmgmt retains its existing user ID and ownership without rewriting business records.",
+  "database": {
+    "beforeRevision": "6e1b2d4c9f01",
+    "afterRevision": "36ae79718683",
+    "migrationSteps": 16,
+    "backupRestoreAndMigrationRehearsal": true,
+    "recordCounts": {
+      "users": 1,
+      "projects": 26,
+      "sandboxes": 24,
+      "storage_files": 82,
+      "storage_folders": 23
+    },
+    "existingVisibleProjects": 5
+  },
+  "verification": {
+    "sameExistingLocalUser": true,
+    "frontendPaths": [
+      "/workspace/",
+      "/workspace/skills",
+      "/workspace/skills/"
+    ],
+    "sdkCreateRunDelete": true,
+    "daemonHealth": 200,
+    "daemonWebSocketSubprotocol": "codesphere.pi-rpc.v1",
+    "daemonHelloAndPing": true,
+    "existingResourceUIDsPreserved": 25,
+    "realLlmChatTested": false
+  },
+  "privateEvidencePath": "xsphere/local/codesphere-align-20261006/; server /root/xsphere-alignment/codesphere-20261006/; database dumps remain on sanjxmgmt only.",
+  "imageDetails": {
+    "codesphere-backend": {
+      "image": "kind.local/codesphere-backend@sha256:1701a4a7cd86f1cf901466c654cfd19801fb77a8b8b135bec1490bbe8ba728ff",
+      "arm64Manifest": "sha256:7c6cca722d89d3b18d4a5e10faf0567bbbdaa7535b02fa3ed1e08d01dc1ebe95",
+      "configDigest": "sha256:ff203e749934d0718b44a4d6e6ad1e6665238da86a4330b187482337274f6934",
+      "podReportedImageID": "docker.io/library/import-2026-10-06@sha256:6990df80b6b2f2593a4ddf799f5fb0e827ffc90a1dea51dd4ef6b7a28f3c1abe",
+      "ready": true,
+      "restartCount": 0,
+      "podReportedImageIDKind": "Combined kind import index containing the pinned backend and frontend indices; not a backend manifest digest."
+    },
+    "codesphere-frontend": {
+      "image": "kind.local/codesphere-frontend@sha256:dea94b08bc4545d64c013c0b4a3375ce727b15f820b28869ea4c6a2d05ba0adc",
+      "arm64Manifest": "sha256:bfbf36d2302daf85d78fdddd67498e9a74a36f95a3d4a7d2b9a2c492e1ba7be1",
+      "configDigest": "sha256:1926792da2fbfb1ba3f22f15d7714cfc33f3ab1928857f55c4ffb04a61f01c5a",
+      "podReportedImageID": "kind.local/codesphere-frontend@sha256:dea94b08bc4545d64c013c0b4a3375ce727b15f820b28869ea4c6a2d05ba0adc",
+      "ready": true,
+      "restartCount": 0,
+      "podReportedImageIDKind": "Pinned frontend index"
+    }
+  },
+  "pythonVersion": "3.13.15",
+  "nginxVersion": "1.31.6",
+  "capturedDate": "2026-10-06 Asia/Shanghai",
+  "sitePatchSha256": "dad5b73abb39c43ef0ecd89fa6ec577317919c34982865686f747334f91786fe",
+  "buildInputSha256": {
+    "backend-source.tar.gz": "2ec9ce04bb73c27d59f2063f8a80cf86dd71579686a54808445a76c15a6ad752",
+    "frontend-assets.tar.gz": "f34a1edcbc661a13f7939f8ca9a65602200f2943b0ccf87d578619419331ab60",
+    "uv.lock": "e715a74542ca2f3ccb53cd64a2575d29c25560c5c6c5ab503fd76f2d7b842b8c",
+    "pyproject.toml": "0fa2dcd500dd86d04921c31a1ab60f295a313e710e60ebe48811d971dd88be2a",
+    "backend/Dockerfile.pinned": "e4f815c16853295bb84a3e819cc2fe43a3ac6546c1a3e435b76bac9083fc86d2",
+    "frontend/Dockerfile.pinned": "c1cc9663698d8c2753be8d3b448bba8e81be68a3455c1c32496fa0dcc612fd52"
+  },
+  "privateEvidenceChecksumSha256": "c01119cd0fc323fb6245b036036d51c2e430204d663c2948c1673a2e5d902cf6"
+}

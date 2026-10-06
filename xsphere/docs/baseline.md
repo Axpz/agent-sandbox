@@ -167,3 +167,7 @@ and verification evidence. Generic chart values cannot reproduce the retained
 legacy FUSE/privileged template fields without adapting that profile. Existing
 claims keep their original template and image; the new base applies to newly
 created sandboxes. No x86 checkpoint or image is used as an ARM64 artifact.
+
+The subsequent CodeSphere application alignment is recorded separately in
+[the application rollout record](../archive/verification-sanjxmgmt-codesphere-55-arm64-20261006.md).
+It replaces the previously retained frontend/backend images without rewriting this sandbox baseline.

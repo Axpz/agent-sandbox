@@ -1,0 +1,19 @@
+--- a/app/controllers/auth/auth.py
++++ b/app/controllers/auth/auth.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import logging
++import os
+ import time
+ from typing import TypedDict
+ 
+@@ -36,7 +37,7 @@
+ logger = logging.getLogger(__name__)
+ _PRIVATE_LOGIN_NONCE_TTL_SECONDS = 300
+ _PRIVATE_LOGIN_NONCE_KEY = "cs:login_nonce:{nonce}"
+-LOCAL_USER_ID = "local-user"
++LOCAL_USER_ID = os.environ.get("CODESPHERE_LOCAL_USER_ID", "local-user")
+ LOCAL_USERNAME = "本地用户"
+ 
+ 
