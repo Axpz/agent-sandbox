@@ -3,9 +3,19 @@
 xsphere 的日常开发与运维从这里开始。暂不拆分仓库；产品集成集中在 `xsphere/`，
 仓库根目录的 agent-sandbox controller、CRD 和 Router 保留原样，作为依赖使用。
 
-## 现在以哪个版本为准
+## 基础链路与源码入口
 
-以 **55 在 2026-10-04 固化的实际版本 `55-20261004`** 为依据：
+先读[基础链路说明](docs/stack.md)：GitHub 上游与 fork、gVisor、controller/CRD、
+sandbox-api、sandbox-edge 和 Router 的职责、构建入口与版本关系。
+CodeSphere 等应用集成使用下列独立入口，不作为基础链路的实现来源。
+
+当前源码以本分支提交为准；各环境的部署版本单独记录。
+[2026-10-16 三环境核对](archive/verification-stack-20261016.md)说明
+sanjxmgmt、14 与 sparkorma 的实际差异和本次整理边界。
+
+## 历史部署基线
+
+**55 在 2026-10-04 固化的实际版本 `55-20261004`** 保留为历史依据：
 基线分支 `baseline/55-20261004`，提交 `48eb265e`，chart 版本 `0.2.0`。
 这是一次部署快照，后续文档整理和开发不改写它。
 
@@ -46,6 +56,7 @@ Postgres、Redis、MinIO 属于 CodeSphere 应用配套服务。历史实验与�
 
 | 目的 | 阅读入口 |
 | --- | --- |
+| 理解基础链路与版本来源 | [基础链路](docs/stack.md)、[三环境核对](archive/verification-stack-20261016.md) |
 | 访问现有 55 环境 | [55 访问说明](docs/access-55.md)、[监控说明](deploy/monitoring/) |
 | 理解暂停、恢复及 Edge 自动唤醒 | [生命周期说明](docs/lifecycle.md) |
 | 修改 API | [API 开发说明](sandbox-api/README.md) |

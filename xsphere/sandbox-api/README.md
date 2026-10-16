@@ -53,6 +53,17 @@ installation. The normal memory path has been verified through the deployed busi
 Gateway/SDK; full chat/Pi session acceptance remains pending. Existing HTTP routes
 and SDK fields are unchanged.
 
+## E2B SDK envd setup
+
+`AGENTSPHERE_ENVD_INIT` (JSON, e.g. `{"defaultUser":"user","defaultWorkdir":"/home/user"}`)
+makes create-time `envVars` and the default user reach envd through `POST /init`,
+as on E2B, instead of the Pod spec. The E2B desktop SDK depends on it (`DISPLAY`,
+non-root Chrome). Values are kept in the `sandbox-api/env-vars` Claim annotation
+and re-sent after each resume, since a restored envd is a new process. Claims then
+carry no `env`, so agent-sandbox can still adopt warm Pods. Unset, envVars stay on
+the Claim as before: codesphere's runtime reads them from PID 1 and runs as root.
+`POST /v2/sandboxes`, which e2b JS SDK 2.52+ creates through, aliases `POST /sandboxes`.
+
 ## Known Gaps
 
 - `X-API-KEY` is documented, not enforced; the envd access token is a compatibility
@@ -62,6 +73,8 @@ and SDK fields are unchanged.
 - Client metadata currently propagates to Pod annotations. Only trusted clients
   may use this baseline; privileged runtime annotations need an allowlist before
   multi-tenant access. `allow_internet_access` is not enforced by this API.
+- With `AGENTSPHERE_ENVD_INIT`, envVars sit in a Claim annotation readable by anyone
+  who can read Claims in the namespace; do not pass secrets that way.
 - Historical artifact deletion, request idempotency keys and per-tenant
   authorization are not implemented. A timed-out create may still
   finish in Kubernetes; do not blindly retry as though nothing was created.

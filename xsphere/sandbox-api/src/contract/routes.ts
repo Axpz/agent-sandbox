@@ -1,6 +1,7 @@
 // OpenAPI routes for the AgentSphere 2.1.5 API plus the SDK 3.x connect endpoint.
 // Paths, methods, status codes and auth mirror the SDK contracts:
-//   - only GET /v2/sandboxes carries the /v2 prefix; the rest are unprefixed
+//   - GET /v2/sandboxes and POST /v2/sandboxes (e2b JS SDK >= 2.52 creates there)
+//     carry the /v2 prefix; the rest are unprefixed
 //   - auth is a raw `X-API-KEY` header (no Bearer)
 //   - connect returns 200 when running and 201 when it resumes a paused sandbox
 import { createRoute, z } from '@hono/zod-openapi'
@@ -41,6 +42,9 @@ export const createSandbox = createRoute({
     500: err('Server error'),
   },
 })
+
+// Same contract as POST /sandboxes; newer e2b SDKs only create through /v2.
+export const createSandboxV2 = createRoute({ ...createSandbox, path: '/v2/sandboxes' })
 
 export const getSandbox = createRoute({
   method: 'get',

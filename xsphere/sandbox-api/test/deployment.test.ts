@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 
@@ -187,10 +189,50 @@ describe('private development chart', () => {
     expect(pool.spec.replicas).toBe(0)
     expect(template.spec.podTemplate.spec.runtimeClassName).toBe('gvisor-l2')
     expect(template.spec.podTemplate.spec.automountServiceAccountToken).toBe(false)
+    expect(template.spec.podTemplate.spec.containers[0].env).toContainEqual({
+      name: 'AGENTSPHERE_SANDBOX_ID',
+      valueFrom: { fieldRef: { fieldPath: 'metadata.name' } },
+    })
+    expect(template.spec.podTemplate.spec.containers[0].env).toContainEqual({
+      name: 'AGENTSPHERE_RESTORE_PATH',
+      valueFrom: {
+        fieldRef: {
+          fieldPath: "metadata.annotations['dev.gvisor.internal.restore.host-image-path']",
+        },
+      },
+    })
     expect(template.spec.volumeClaimTemplates[0].metadata.name).toBe('workspace')
     expect(template.spec.podTemplate.spec.containers[0].securityContext.capabilities.add).toEqual([
       'SYS_ADMIN',
     ])
+  })
+
+  test('runtime hook restarts only restored envd and still invokes recovery when pkill fails', () => {
+    const template = resources(['--set', 'runtime.enabled=true,runtime.image=runtime:arm64']).find(
+      (o) => o.kind === 'SandboxTemplate',
+    )
+    const command = template.spec.podTemplate.spec.containers[0].lifecycle.postStart.exec.command
+    expect(command.slice(0, 2)).toEqual(['/bin/sh', '-c'])
+    const dir = mkdtempSync(resolve(tmpdir(), 'xsphere-recovery-'))
+    try {
+      // Exercise the rendered shell without signalling real host processes.
+      writeFileSync(resolve(dir, 'pkill'), '#!/bin/sh\nprintf "restart:%s\\n" "$*"\nexit 1\n')
+      writeFileSync(resolve(dir, 'recover'), '#!/bin/sh\nprintf "recovery\\n"\n')
+      chmodSync(resolve(dir, 'pkill'), 0o700)
+      chmodSync(resolve(dir, 'recover'), 0o700)
+      const script = command[2].replace('/usr/local/bin/envd-recover', resolve(dir, 'recover'))
+      for (const restored of ['', '/checkpoints/committed']) {
+        const result = Bun.spawnSync(['/bin/sh', '-c', script], {
+          env: { ...process.env, PATH: dir, AGENTSPHERE_RESTORE_PATH: restored },
+        })
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout.toString()).toBe(
+          restored ? 'restart:-x envd\nrecovery\n' : 'recovery\n',
+        )
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   test('rejects malformed domain and Nginx upstream configuration', () => {

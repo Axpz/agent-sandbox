@@ -1,6 +1,22 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
+import { z } from 'zod'
 import { runtimeConfigSchema } from './checkpoint/model'
+
+// E2B hands create-time envVars and the default user to envd through POST
+// /init instead of the Pod spec: the E2B SDKs (desktop: DISPLAY) expect every
+// command to see them, and envd builds each command's environment itself
+// rather than inheriting its own. Off unless configured, because existing
+// runtimes (codesphere) read their variables from PID 1 and run as root.
+export const envdInitSchema = z
+  .object({
+    defaultUser: z.string().min(1).optional(),
+    defaultWorkdir: z.string().min(1).optional(),
+    port: z.number().int().positive().default(49983),
+    // A restored envd is restarted by envd-recover, so allow for its bind time.
+    timeoutMs: z.number().int().positive().default(15_000),
+  })
+  .strict()
 
 // loadFromFile does not expand '~', so do it here.
 function expandHome(p: string): string {
@@ -12,6 +28,10 @@ function expandHome(p: string): string {
 export const config = {
   checkpoint: process.env.AGENTSPHERE_CHECKPOINT_CONFIG
     ? runtimeConfigSchema.parse(JSON.parse(process.env.AGENTSPHERE_CHECKPOINT_CONFIG))
+    : null,
+  // e.g. {"defaultUser":"user","defaultWorkdir":"/home/user"}; see envdInitSchema.
+  envdInit: process.env.AGENTSPHERE_ENVD_INIT
+    ? envdInitSchema.parse(JSON.parse(process.env.AGENTSPHERE_ENVD_INIT))
     : null,
   // --- k8s access ---
   kubeconfig: process.env.AGENTSPHERE_KUBECONFIG
@@ -31,7 +51,8 @@ export const config = {
   k8sToken: process.env.AGENTSPHERE_K8S_TOKEN ?? '',
 
   // agent-sandbox warm pool a create() binds against (v1: single pool for all
-  // templates — the required warmPoolRef; any env forces a cold start anyway).
+  // templates — the required warmPoolRef; claim env forces a cold start, so
+  // envdInit keeps create-time envVars off the claim).
   warmPool: process.env.AGENTSPHERE_WARMPOOL ?? 'litesandbox-warmpool',
 
   // subdomain root the edge routes <port>-<id>.<domain> on.

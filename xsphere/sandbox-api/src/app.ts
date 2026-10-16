@@ -3,6 +3,7 @@ import { MemoryConflict } from './checkpoint/model'
 import {
   connectSandbox,
   createSandbox,
+  createSandboxV2,
   getSandbox,
   killSandbox,
   listSandboxes,
@@ -33,17 +34,19 @@ app.get('/health', (c) => c.json({ status: 'ok' }))
 
 // Unexpected backend errors throw and are turned into a {code,message} 500 by
 // app.onError below; only contract-declared statuses are returned inline.
-app.openapi(createSandbox, async (c) => {
-  const body = c.req.valid('json')
-  const sb = await backend.createSandbox({
-    templateID: body.templateID,
-    envVars: body.envVars,
-    metadata: body.metadata,
-    timeout: body.timeout,
-    autoPause: body.autoPause,
+for (const route of [createSandbox, createSandboxV2]) {
+  app.openapi(route, async (c) => {
+    const body = c.req.valid('json')
+    const sb = await backend.createSandbox({
+      templateID: body.templateID,
+      envVars: body.envVars,
+      metadata: body.metadata,
+      timeout: body.timeout,
+      autoPause: body.autoPause,
+    })
+    return c.json(sb, 201)
   })
-  return c.json(sb, 201)
-})
+}
 
 app.openapi(getSandbox, async (c) => {
   const { sandboxID } = c.req.valid('param')

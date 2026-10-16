@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import type { V1ConfigMap, V1Job, V1ObjectMeta, V1Pod } from '@kubernetes/client-node'
 import {
   MEMORY_LABEL,
@@ -100,6 +100,7 @@ function createPod(sandbox: Sandbox): void {
       containers: sandbox.spec.podTemplate?.spec?.containers ?? [],
     },
     status: {
+      podIP: '10.0.0.9',
       conditions: [{ type: 'Ready', status: 'True' }],
       containerStatuses: [
         {
@@ -281,6 +282,7 @@ beforeEach(() => {
   config.createPollMs = 1
   completeTransition = true
   config.checkpoint = null
+  config.envdInit = null
   configMaps.clear()
   jobs.clear()
   pods.clear()
@@ -355,7 +357,7 @@ describe('lifecycle request metrics', () => {
   })
 })
 
-async function createMemorySandbox(): Promise<string> {
+async function createMemorySandbox(extra: JsonObject = {}): Promise<string> {
   config.checkpoint = {
     runtimeClassName: 'gvisor',
     nodeName: 'node-a',
@@ -369,6 +371,7 @@ async function createMemorySandbox(): Promise<string> {
   const response = await request('/sandboxes', 'POST', {
     templateID: 'arm-business',
     timeout: 7200,
+    ...extra,
   })
   expect(response.status).toBe(201)
   return ((await response.json()) as { sandboxID: string }).sandboxID
@@ -670,5 +673,110 @@ describe('imported sandbox-api compatibility', () => {
   test('invalid create bodies fail before touching Kubernetes', async () => {
     expect((await request('/sandboxes', 'POST', { templateId: 'wrong-case' })).status).toBe(400)
     expect(createClaim).not.toHaveBeenCalled()
+  })
+})
+
+describe('envd /init for E2B SDKs', () => {
+  const inits: Array<{ url: string; body: Record<string, unknown> }> = []
+  let initStatus = 204
+  let fetchSpy: ReturnType<typeof spyOn>
+  const defaultCreateClaim = createClaim.getMockImplementation()
+
+  beforeEach(() => {
+    inits.length = 0
+    initStatus = 204
+    fetchSpy = spyOn(globalThis, 'fetch').mockImplementation((async (
+      url: string | URL,
+      init?: RequestInit,
+    ) => {
+      inits.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+      return new Response(null, { status: initStatus })
+    }) as typeof fetch)
+    // Every bound sandbox gets a Pod with an IP, as on a real node.
+    createClaim.mockImplementation(async (body: JsonObject) => {
+      const claim = structuredClone(body) as Claim
+      const id = `bound-${claims.size}`
+      bind(claim, id)
+      // Memory sandboxes already got a full Pod from bind().
+      if (!pods.has(id)) pods.set(id, { metadata: { name: id }, status: { podIP: '10.0.0.9' } })
+      return structuredClone(claim)
+    })
+  })
+
+  afterEach(() => {
+    fetchSpy.mockRestore()
+    if (defaultCreateClaim) createClaim.mockImplementation(defaultCreateClaim)
+  })
+
+  const enable = () => {
+    config.envdInit = {
+      defaultUser: 'user',
+      defaultWorkdir: '/home/user',
+      port: 49983,
+      timeoutMs: 20,
+    }
+  }
+
+  test('POST /v2/sandboxes creates exactly like POST /sandboxes', async () => {
+    const response = await request('/v2/sandboxes', 'POST', { templateID: 'desktop' })
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({ sandboxID: 'bound-1', templateID: 'desktop' })
+    expect(createClaim).toHaveBeenCalledTimes(1)
+  })
+
+  test('disabled by default: envVars stay on the Claim and envd is never called', async () => {
+    await request('/sandboxes', 'POST', { templateID: 'base', envVars: { A: '1' } })
+    expect(createClaim.mock.calls[0][0]).toMatchObject({
+      spec: { env: [{ name: 'A', value: '1' }] },
+    })
+    expect(inits).toHaveLength(0)
+  })
+
+  test('create keeps envVars off the Claim and sends them with the default user', async () => {
+    enable()
+    const response = await request('/v2/sandboxes', 'POST', {
+      templateID: 'desktop',
+      envVars: { DISPLAY: ':0' },
+    })
+    expect(response.status).toBe(201)
+    const claim = createClaim.mock.calls[0][0] as Claim
+    expect(claim.spec.env).toBeUndefined()
+    expect(claim.metadata.annotations?.['sandbox-api/env-vars']).toBe('{"DISPLAY":":0"}')
+    expect(inits).toEqual([
+      {
+        url: 'http://10.0.0.9:49983/init',
+        body: { envVars: { DISPLAY: ':0' }, defaultUser: 'user', defaultWorkdir: '/home/user' },
+      },
+    ])
+  })
+
+  test('resume re-sends the stored envVars to the new envd', async () => {
+    enable()
+    await request('/sandboxes', 'POST', { templateID: 'desktop', envVars: { DISPLAY: ':0' } })
+    expect((await request('/sandboxes/bound-1/pause', 'POST')).status).toBe(204)
+    expect((await request('/sandboxes/bound-1/resume', 'POST', {})).status).toBe(201)
+    expect(inits.map((i) => i.body.envVars)).toEqual([{ DISPLAY: ':0' }, { DISPLAY: ':0' }])
+  })
+
+  test('a memory restore re-sends the stored envVars once the new Pod is Ready', async () => {
+    enable()
+    const id = await createMemorySandbox({ envVars: { DISPLAY: ':0' } })
+    expect((await request(`/sandboxes/${id}/pause`, 'POST')).status).toBe(204)
+    expect((await request(`/sandboxes/${id}/connect`, 'POST', { timeout: 60 })).status).toBe(201)
+    expect(inits.map((i) => [i.url, i.body.envVars])).toEqual([
+      ['http://10.0.0.9:49983/init', { DISPLAY: ':0' }],
+      ['http://10.0.0.9:49983/init', { DISPLAY: ':0' }],
+    ])
+  })
+
+  test('a failed /init deletes the Claim instead of returning a half-initialized sandbox', async () => {
+    enable()
+    initStatus = 500
+    const response = await request('/sandboxes', 'POST', { templateID: 'desktop' })
+    expect(response.status).toBe(500)
+    expect(((await response.json()) as { message: string }).message).toContain(
+      'envd /init for sandbox bound-1 failed: envd /init returned HTTP 500',
+    )
+    expect(deleteClaim).toHaveBeenCalledTimes(1)
   })
 })

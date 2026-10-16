@@ -1,79 +1,18 @@
-# gVisor External Dependency
+# gVisor Baseline
 
-gVisor source, the restore-shim change and build tooling are maintained in
-[Axpz/gvisor](https://github.com/Axpz/gvisor/tree/feat/shim-restore-host-image-path).
-This directory only records the dependency and its integration boundary. It does
-not contain a second patch copy, build wrapper or node installer.
+Verified and deployed on **sanjxmgmt / ARM64** and **55 / AMD64**, 2026-10-07.
 
-## Pinned Source
+- Source: [Axpz/gvisor](https://github.com/Axpz/gvisor/tree/xsphere/release-20260831.0), branch `xsphere/release-20260831.0`.
+- Commit: `02fda6871a33c6646ddc1f0b83a67cfc81e329fe`, based on upstream `release-20260831.0`.
 
-- Development branch: `feat/shim-restore-host-image-path`.
-- Fixed commit: [`7e3a4c73201e3ba06d825dc4e7e4d7887de545bd`](https://github.com/Axpz/gvisor/commit/7e3a4c73201e3ba06d825dc4e7e4d7887de545bd).
-- Upstream base: `8865c1523f7af680f26eaa20ebcc702989ed4923`.
-- Recorded verification: AMD64/ARM64 shim builds and unit tests. **Pod restore E2E
-  has not been rerun on this source base.** Pin the commit, not the moving branch.
+| Architecture | Custom shim SHA-256 | Official runsc SHA-256 |
+| --- | --- | --- |
+| ARM64 | `4f943fdbf94082b5fac187ae8d7456af2b43d4c9e8955c1a555ad9e4a4a1a476` | `d5679775682cd4cb11ba7bf7bd8e04235622aa8797d518dd280064e5cd27ed5d` |
+| AMD64 | `4e57935087b45472fddca181be04e16e59e5adb65d2eefcf7a03a09b50f9976a` | `1a4995a70b3c8b7d36f55d7d2dc6d15185ebe420de653b1a330b42d36c0e6b4a` |
 
-The shim accepts `dev.gvisor.internal.restore.host-image-path` and invokes
-`runsc restore` during Pod creation. This is not an ARM64 PAC fix or automatic
-checkpoint coordination in sandbox-api.
+Only the shim was rebuilt. runsc and auxiliary binaries are unmodified upstream artifacts.
+Each architecture passed 29 unit tests and a pause/resume memory check.
+Backups and rollback scripts: sanjxmgmt `/root/xsphere-shim-02fda6871/`;
+55 `/orchestrator/xsphere/data/gvisor/upgrade-20260831-amd64/`.
 
-## Artifacts and Node Integration
-
-No downloadable custom binary release is recorded here. Build the pinned source
-using its [build instructions](https://github.com/Axpz/gvisor/blob/7e3a4c73201e3ba06d825dc4e7e4d7887de545bd/README.md#installing-from-source),
-or reuse a previously verified artifact with recorded checksums. Official upstream
-releases must not be assumed to contain this custom shim change. Keep source commit,
-architecture, build options and artifact checksums together. Follow that source's
-packaging layout, including required sidecars; do not mix arbitrary runsc/shim versions.
-
-Node installation is separate from xsphere Helm deployment. Review the pinned
-[containerd integration guide](https://github.com/Axpz/gvisor/blob/7e3a4c73201e3ba06d825dc4e7e4d7887de545bd/g3doc/user_guide/containerd/quick_start.md)
-against the selected node's containerd version before making changes:
-
-1. Back up node configuration and retain the current binaries. Install a compatible
-   runtime in a versioned directory with a separate containerd handler; leave the
-   default runtime unchanged. In kind, configure the node container, not host containerd.
-2. Configure annotation forwarding (`pod_annotations = ["dev.gvisor.internal.*"]`)
-   and an access-controlled checkpoint directory visible to the node runtime.
-   Review node activation in a maintenance window and verify CRI health.
-3. Select the existing RuntimeClass in the business template. For the optional
-   chart template, set `runtime.runtimeClassName` to that class. Names such as
-   `gvisor-l2` / `runsc-l2` are configuration names, not versions. The chart neither
-   creates the RuntimeClass nor installs the handler.
-
-Before rollback, stop scheduling to the new handler and account for its running
-workloads. Restore the reviewed previous configuration without overwriting later
-operator changes; restart the selected service only in an approved maintenance
-window. Retain binaries needed by existing shims, checkpoint artifacts and PVCs.
-
-## Historical Compatibility
-
-Earlier same-node Pod tests used official `release-20260817.0` runsc
-(`50e1502a95d36ad2faf2c7ef33b8bf21fe975293`) with a locally patched shim, not the
-newer source pin above. The immutable [build and checksum record](https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/platform/runtime/gvisor.lock.json)
-and [source/build archive](https://github.com/Axpz/agent-sandbox/blob/9d94c78542c2d0380a041c1edda5bf6a4bc8c100/_demo/gvisor-cr/restore-shim.md)
-preserve the old patch and reproduction details without maintaining them here.
-These fixed-commit URLs retain their original directory names so the evidence
-remains accessible after the product directory rename.
-
-The tested scope was one node and a single application container. ARM64 required
-a Linux VM with PAC disabled; disabling PAC reduces VM protection and is not a
-general ARM fix. Keep the runtime, CPU features, business image and PVC compatible.
-Validate new builds with real Pod restore tests before promotion. Failed application
-restore cleanup taking about two minutes remains a recorded limitation.
-
-Artifacts contain sensitive process memory. Restrict host-path annotations to
-trusted workloads. The [lifecycle guide](../docs/lifecycle.md) explains quiescing,
-artifact completion and recovery failure handling. The default sandbox-api workflow
-preserves PVC data; the opt-in checkpoint workflow preserves memory within its
-tested limits. Node setup alone does not enable that workflow.
-
-The [55 baseline](../docs/baseline.md) records the actual `release-20260817.0`
-AMD64 runsc and patched shim checksums observed on 2026-10-04. These are historical
-runtime artifacts, not binaries built from the newer source pin above. They remain
-external prerequisites; the baseline capture did not copy binaries or memory dumps.
-
-The [sanjxmgmt ARM64 alignment](../archive/verification-sanjxmgmt-55-arm64-20261006.md)
-retains the existing verified ARM64 runtime/shim, with its own recorded checksums.
-It updates the product API, Router, controller and container recovery integration;
-it does not promote the newer gVisor source pin or migrate x86 checkpoints.
+This file is the current baseline; source and build tooling stay in Axpz/gvisor.
