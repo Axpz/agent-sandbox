@@ -417,6 +417,9 @@ export async function transition(
   claimName: string,
   action: 'pause' | 'resume',
   resumeTimeoutSeconds?: number,
+  // The reconciler decides from a listed snapshot; recheck under exclusion so a
+  // deadline extended in between does not pause a sandbox that is in use.
+  onlyIfExpired = false,
 ): Promise<void> {
   runtime()
   await exclusive(claimName, async () => {
@@ -428,6 +431,7 @@ export async function transition(
     if (record.operation && record.error) throw new Error(record.error)
     if (!record.operation) {
       if ((action === 'pause') === (record.state === 'paused')) return
+      if (onlyIfExpired && Date.parse(record.deadline) > Date.now()) return
       await cleanJobs(journal.cm)
       const pod = action === 'pause' ? await podFor(record) : null
       const source =
@@ -466,67 +470,33 @@ export async function memoryCanDelete(claimName: string): Promise<void> {
   }
 }
 
-export function startMemoryReconciler(intervalMs = 2000): () => void {
+// The interval only bounds how late an expiry is noticed; every transition runs
+// to completion through the same sequential path as the HTTP API.
+const reconcileIntervalMs = Number(
+  process.env.AGENTSPHERE_MEMORY_RECONCILE_INTERVAL_MS ?? 15 * 60 * 1000,
+)
+
+export function startMemoryReconciler(intervalMs = reconcileIntervalMs): () => void {
   if (!config.checkpoint) return () => {}
   let stopped = false
   let timer: ReturnType<typeof setTimeout> | undefined
-  let cursor: string | undefined
   const tick = async () => {
     try {
-      const page = await coreApi.listNamespacedConfigMap({
-        namespace: config.namespace,
-        labelSelector: `${MEMORY_LABEL}=true`,
-        limit: 50,
-        _continue: cursor,
-      })
-      cursor = page.metadata?._continue || undefined
-      for (const cm of page.items) {
-        if (stopped) break
-        const record = recordSchema.parse(JSON.parse(cm.data?.record ?? ''))
-        if (active.has(record.claimName)) continue
-        try {
-          await exclusive(record.claimName, async () => {
-            // Reread after acquiring exclusion; a request may have changed it.
-            const journal = await readJournal(record.claimName)
-            if (!(await bind(journal))) return
-            if (journal.record.operation) {
-              if (journal.record.error) return
-              await advance(journal)
-              return
-            }
-            if (
-              journal.record.state === 'running' &&
-              !journal.record.error &&
-              Date.parse(journal.record.deadline) <= Date.now()
-            ) {
-              if (!journal.record.autoPause) {
-                await deleteClaimCR(record.claimName)
-                return
-              }
-              const pod = await podFor(journal.record)
-              if (!pod) throw new Error('expired memory sandbox has no running Pod')
-              await cleanJobs(journal.cm)
-              journal.record.operation = {
-                id: crypto.randomUUID(),
-                action: 'pause',
-                stage: 'save',
-                source: validateSource(journal.record, pod),
-                startedAt: new Date().toISOString(),
-              }
-              await persist(journal)
-            }
-          })
-        } catch (error) {
-          if (!isNotFound(error) && !(error instanceof MemoryConflict)) {
-            logger.error(
-              { err: String(error), claimName: record.claimName },
-              'memory reconciliation failed',
-            )
-          }
+      let cursor: string | undefined
+      do {
+        const page = await coreApi.listNamespacedConfigMap({
+          namespace: config.namespace,
+          labelSelector: `${MEMORY_LABEL}=true`,
+          limit: 50,
+          _continue: cursor,
+        })
+        cursor = page.metadata?._continue || undefined
+        for (const cm of page.items) {
+          if (stopped) return
+          await reconcileOne(recordSchema.parse(JSON.parse(cm.data?.record ?? '')))
         }
-      }
+      } while (cursor && !stopped)
     } catch (error) {
-      cursor = undefined
       logger.error({ err: String(error) }, 'memory journal scan failed')
     } finally {
       if (!stopped) timer = setTimeout(tick, intervalMs)
@@ -536,5 +506,33 @@ export function startMemoryReconciler(intervalMs = 2000): () => void {
   return () => {
     stopped = true
     if (timer) clearTimeout(timer)
+  }
+}
+
+// Touch only journals with work to do: a sandbox being created, running before
+// its deadline, or paused is never locked, so the scan cannot race a request.
+async function reconcileOne(record: MemoryRecord): Promise<void> {
+  if (active.has(record.claimName) || record.error) return
+  const expired = record.state === 'running' && Date.parse(record.deadline) <= Date.now()
+  if (!record.operation && !expired) return
+  try {
+    if (record.operation) {
+      await transition(record.claimName, record.operation.action)
+    } else if (record.autoPause) {
+      await transition(record.claimName, 'pause', undefined, true)
+    } else {
+      await exclusive(record.claimName, async () => {
+        const journal = await readJournal(record.claimName)
+        if (journal.record.operation || Date.parse(journal.record.deadline) > Date.now()) return
+        await deleteClaimCR(record.claimName)
+      })
+    }
+  } catch (error) {
+    if (!isNotFound(error) && !(error instanceof MemoryConflict)) {
+      logger.error(
+        { err: String(error), claimName: record.claimName },
+        'memory reconciliation failed',
+      )
+    }
   }
 }
