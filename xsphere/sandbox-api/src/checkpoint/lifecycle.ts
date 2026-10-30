@@ -156,16 +156,14 @@ export function validateSource(record: MemoryRecord, pod: V1Pod): Source {
     pod.metadata?.deletionTimestamp ||
     spec.runtimeClassName !== rt.runtimeClassName ||
     spec.nodeName !== rt.nodeName ||
-    spec.restartPolicy !== 'Never' ||
     spec.containers.length !== 1 ||
     spec.initContainers?.length ||
     spec.ephemeralContainers?.length ||
     !status?.state?.running ||
-    status.restartCount !== 0 ||
     !status.containerID?.startsWith('containerd://')
   ) {
     throw new Error(
-      'memory checkpoint requires a running, single-container, restartPolicy Never Pod on the configured runtime/node',
+      'memory checkpoint requires a running, single-container Pod on the configured runtime/node',
     )
   }
   return sourceSchema.parse({
@@ -257,7 +255,6 @@ async function advance(journal: Journal): Promise<void> {
         spec.podTemplate.spec?.containers.length !== 1 ||
         spec.podTemplate.spec.containers[0].image !== record.checkpoint.source.image ||
         spec.podTemplate.spec.runtimeClassName !== rt.runtimeClassName ||
-        spec.podTemplate.spec.restartPolicy !== 'Never' ||
         spec.podTemplate.spec.nodeSelector?.['kubernetes.io/hostname'] !== rt.nodeName
       ) {
         throw new RestoreAbandoned('restore template changed; refusing incompatible restore')
@@ -286,10 +283,8 @@ async function advance(journal: Journal): Promise<void> {
       await patchSandboxOperatingMode(name, 'Running')
       const pod = await podFor(record)
       if (!pod || !podReady(pod)) {
-        // A restored Pod never restarts, so a terminal phase -- a failed
-        // startup probe, most of all -- is already the final answer. Sitting
-        // out the rest of the timeout would only delay a verdict kubelet has
-        // made, and it holds the sandbox undeletable while it waits.
+        // A terminal Pod phase or an exceeded startup deadline cannot produce
+        // a usable restore. Container restarts within a live Pod are allowed.
         const decided =
           pod?.status?.phase === 'Failed' ||
           pod?.status?.phase === 'Succeeded' ||

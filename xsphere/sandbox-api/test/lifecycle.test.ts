@@ -378,6 +378,23 @@ async function createMemorySandbox(extra: JsonObject = {}): Promise<string> {
 }
 
 describe('memory lifecycle through the existing HTTP API', () => {
+  test('pause and resume accept Always and an already restarted running container', async () => {
+    const id = await createMemorySandbox()
+    const spec = read(sandboxes, id).spec.podTemplate?.spec
+    if (!spec) throw new Error('missing sandbox template')
+    spec.restartPolicy = 'Always'
+    createPod(read(sandboxes, id))
+    const status = read(pods, id).status?.containerStatuses?.[0]
+    if (!status) throw new Error('missing container status')
+    status.restartCount = 3
+
+    expect((await request(`/sandboxes/${id}/pause`, 'POST')).status).toBe(204)
+    expect(pods.has(id)).toBe(false)
+    expect((await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })).status).toBe(201)
+    expect(read(pods, id).spec?.restartPolicy).toBe('Always')
+    expect(workerActions).toEqual(['save'])
+    expect(deleteClaim).not.toHaveBeenCalled()
+  })
   test('a failed suspension can be retried without taking another checkpoint', async () => {
     const id = await createMemorySandbox()
     failSuspension = true

@@ -38,8 +38,8 @@ API/worker 镜像、业务 runtime 镜像以及 runsc/shim 必须分别记录来
 - 内存流程：先保存并提交 checkpoint，再暂停；恢复时由 shim 读取记录中的 checkpoint。
 - Edge 的 connect 可以触发正常唤醒；Router 自身不处理暂停/恢复。
 - envd 是沙箱内的命令、文件与初始化接口；它的健康检查不等于任意业务进程健康。
-- 内存流程要求单容器、`restartPolicy: Never`、固定节点与兼容的镜像和运行时。
-  `Always` 不是这一流程的通用恢复策略。
+- 内存流程要求单容器运行中、固定节点与兼容的镜像和运行时；不限制重启策略或历史重启次数。
+  `Always` 仍可能在 checkpoint 停止容器后、Pod 删除前触发一次重启，不代表新增了异常恢复逻辑。
 
 具体顺序、envd 恢复钩子及失败边界见[生命周期说明](lifecycle.md)。
 保存失败可能已停止源进程；保留有效 checkpoint 和 PVC，不能因 Pod Ready 或文件存在

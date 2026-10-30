@@ -59,7 +59,9 @@ chat/Pi session workflow. Pod readiness alone does not prove memory continuity.
 With `AGENTSPHERE_CHECKPOINT_CONFIG` (chart value `api.checkpoint`) enabled, newly
 created Claims use this path; existing unmarked Claims keep the default workflow.
 It requires one API replica, one configured node, a pinned image/runtime, and a
-single-container `restartPolicy: Never` Pod. Use a `Recreate` API Deployment so
+single-container running Pod. Restart policy and prior container restart count do
+not block pause/resume. With `Always`, kubelet may restart the container after
+checkpoint stops it and before the controller removes the Pod. Use a `Recreate` API Deployment so
 old and new instances do not concurrently process the same operation journals.
 
 1. `pause` runs native `runsc checkpoint` **without** `--leave-running`. gVisor
