@@ -160,6 +160,34 @@ describe('private development chart', () => {
     expect(serialized).not.toContain('dev.gvisor.internal')
   })
 
+  test('separates workload permissions from management and reuses an upstream Router', () => {
+    const objects = resources([
+      '--set',
+      'workloadNamespace=sandbox,router.enabled=false,router.image=,runtime.enabled=true,runtime.image=runtime:test,api.checkpoint.timeoutSeconds=180,monitoring.dashboards.enabled=true,monitoring.dashboards.namespace=monitoring',
+    ])
+    const api = objects.find((o) => o.kind === 'Deployment' && o.metadata.name === 'sandbox-api')
+    expect(api.metadata.namespace).toBe('isolated')
+    expect(api.spec.template.spec.containers[0].env).toContainEqual({
+      name: 'AGENTSPHERE_NAMESPACE',
+      value: 'sandbox',
+    })
+    const binding = objects.find((o) => o.kind === 'RoleBinding')
+    expect(binding.metadata.namespace).toBe('sandbox')
+    expect(binding.subjects[0].namespace).toBe('isolated')
+    expect(objects.find((o) => o.kind === 'SandboxTemplate').metadata.namespace).toBe('sandbox')
+    expect(objects.find((o) => o.kind === 'SandboxWarmPool').metadata.namespace).toBe('sandbox')
+    expect(
+      objects.find((o) => o.metadata.name === 'sandbox-checkpoint-worker').metadata.namespace,
+    ).toBe('sandbox')
+    expect(objects.some((o) => o.metadata.name === 'sandbox-router')).toBe(false)
+    const nginx = objects.find((o) => o.metadata.name === 'sandbox-edge-nginx').data['default.conf']
+    expect(nginx).toContain('X-Sandbox-Namespace sandbox;')
+    expect(nginx).toContain('sandbox-router-svc.isolated.svc.cluster.local:8080')
+    for (const obj of objects.filter((o) => o.metadata.labels?.grafana_dashboard === '1')) {
+      expect(obj.metadata.namespace).toBe('monitoring')
+    }
+  })
+
   test('domain changes restart Edge and optional NodePort stays explicit', () => {
     const base = resources()
     const changed = resources(['--set', 'domain=runtime.example.invalid,edge.serviceType=NodePort'])
@@ -175,6 +203,20 @@ describe('private development chart', () => {
       changed.find((o) => o.kind === 'Service' && o.metadata.name === 'sandbox-edge').spec.ports[0]
         .nodePort,
     ).toBe(30080)
+  })
+
+  test('public previews retain port restrictions and the lookup host is read-only', () => {
+    const objects = resources([
+      '--set',
+      'edge.publicDomain=preview.example.invalid,edge.apiLookupHost=lookup.example.invalid',
+    ])
+    const nginx = objects.find((o) => o.metadata.name === 'sandbox-edge-nginx').data['default.conf']
+    expect(nginx).toContain('preview\\.example\\.invalid')
+    expect(nginx).toContain('^(22|8081|8888|49983|49999)$')
+    expect(nginx).toContain('server_name lookup.example.invalid;')
+    expect(nginx).toContain('limit_except GET { deny all; }')
+    expect(render(['--set-string', 'edge.publicDomain=bad;name']).exitCode).not.toBe(0)
+    expect(render(['--set-string', 'edge.apiLookupHost=bad;name']).exitCode).not.toBe(0)
   })
 
   test('runtime is opt-in with an explicit image and one PVC per Sandbox', () => {
@@ -301,7 +343,7 @@ describe('monitoring dashboards', () => {
       for (const { target } of queries(dashboard)) {
         if (!cgroup.test(target.expr)) continue
         // Control-plane containers are selected by name and do report per-container.
-        if (target.expr.includes('container=~"api|router|nginx"')) continue
+        if (file === 'control-plane.json' && target.expr.includes('container=~"')) continue
         checked++
         for (const matcher of ['container=""', 'image=""', 'name=""']) {
           expect(target.expr, `${file}: ${target.expr}`).toContain(matcher)
@@ -337,13 +379,15 @@ describe('monitoring dashboards', () => {
     expect(startupQueries).toBeGreaterThan(0)
   })
 
-  test('lifecycle request panels keep the namespace selector and stay out of the template filter', async () => {
+  test('lifecycle panels select the management namespace independently of workload templates', async () => {
     let checked = 0
     for (const [file, dashboard] of await dashboards()) {
       for (const { target } of queries(dashboard)) {
         if (!target.expr.includes('sandbox_api_lifecycle_request_duration_seconds_')) continue
         checked++
-        expect(target.expr, `${file}: ${target.expr}`).toContain('namespace="$ns"')
+        expect(target.expr, `${file}: ${target.expr}`).toContain(
+          file === 'control-plane.json' ? 'namespace="$ns"' : 'namespace="$management_ns"',
+        )
         expect(target.expr, `${file}: ${target.expr}`).not.toContain('$template')
       }
     }

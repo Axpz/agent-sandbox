@@ -21,12 +21,16 @@ grafana:
       # Grafana's distroless images have a read-only plugin directory, where
       # auto-updating the bundled Prometheus plugin fails at startup.
       preinstall_auto_update: false
+    # Set this to the browser-facing URL when using an HTTPS proxy.
+    # server:
+    #   root_url: https://monitor.example.invalid/
   sidecar:
     datasources:
       # The dashboard JSON references this datasource by UID. Changing it means
       # editing all four dashboards.
       uid: prometheus
     dashboards:
+      searchNamespace: monitoring
       # Without these two the dashboards still load, but land in Grafana's root
       # next to the stack's own ~23 dashboards instead of the `xsphere` folder.
       # Enabling them does not move existing dashboards: the stack's own carry
@@ -51,9 +55,12 @@ grafana:
 
 # registry.k8s.io redirects to a regional Google registry that some networks
 # cannot reach.
-# kube-state-metrics:
-#   image:
-#     registry: k8s.m.daocloud.io
+kube-state-metrics:
+  # Distinguish currently unclaimed warm-pool Pods from claimed sandboxes.
+  metricLabelsAllowlist:
+    - pods=[agents.x-k8s.io/warm-pool-sandbox]
+  # image:
+  #   registry: k8s.m.daocloud.io
 
 prometheus:
   prometheusSpec:

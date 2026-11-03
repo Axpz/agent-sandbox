@@ -4,6 +4,8 @@ development:
   skipKubernetesTLSVerify: false
 
 domain: sandbox.example.invalid
+# Empty preserves the single-namespace profile. The namespace must already exist.
+workloadNamespace: ""
 imagePullSecrets: []
 nodeSelector: {}
 
@@ -24,6 +26,8 @@ api:
     limits: {cpu: "1", memory: 512Mi}
 
 router:
+  # Disable when the Router is managed by its upstream chart.
+  enabled: true
   image: ""
   pullPolicy: IfNotPresent
   clusterDomain: cluster.local
@@ -37,6 +41,11 @@ router:
 
 edge:
   image: nginx:1.28.0-alpine
+  # Optional public preview hostname, separate from the internal SDK domain.
+  publicDomain: ""
+  blockedPublicPorts: [22, 8081, 8888, 49983, 49999]
+  # Optional private virtual host exposing GET /sandboxes/{id} only.
+  apiLookupHost: ""
   # Browser redirect for the private UI's /__preview_auth/auto entry, not auth.
   previewCompatibility: false
   serviceType: ClusterIP
@@ -89,4 +98,6 @@ monitoring:
   # grafana_folder; without it the dashboards land in Grafana's root instead.
   dashboards:
     enabled: false
+    # Empty uses the release namespace; match the Grafana sidecar's search scope.
+    namespace: ""
     folder: xsphere

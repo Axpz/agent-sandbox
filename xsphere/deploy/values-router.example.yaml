@@ -1,0 +1,26 @@
+# Values for the unmodified upstream Router v1.0.9 / chart 0.1.0.
+namespace:
+  name: agent-sandbox-system
+image:
+  repository: sandbox-router
+  tag: xsphere-afc6c6a
+replicaCount: 1
+router:
+  cacheNamespace: sandbox
+  clusterDomain: cluster.local
+  proxyTimeout: 180s
+  upstreamMaxRetries: 3
+authz:
+  mode: allow-all
+topologySpread:
+  enabled: false
+pdb:
+  enabled: false
+networkPolicy:
+  enabled: true
+  # Replace with the real Kubernetes API endpoint CIDR before installation.
+  apiServerCIDRs: [192.0.2.10/32]
+  proxyIngressFrom:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: sandbox-edge

@@ -1,0 +1,37 @@
+# Private single-node K3s profile. Copy into xsphere/local/ and select your images.
+# Install upstream Controller and Router separately; see docs/k3s.md.
+development:
+  allowUnauthenticated: true
+  skipKubernetesTLSVerify: false
+
+workloadNamespace: sandbox
+domain: sandbox-edge.agent-sandbox-system.svc.cluster.local
+
+api:
+  image: sandbox-api:1029.1@sha256:3ec964e8a9fceeddbae3eee1af234960f5c5fe9beca944baa7a7a44feef1fd1d
+  warmPool: xsphere-warmpool
+  serviceMonitor:
+    enabled: true
+
+router:
+  enabled: false
+
+edge:
+  image: nginx:1.27.0
+  tls:
+    enabled: true
+    secretName: sandbox-edge-tls
+
+# Reuse the reviewed workload template; its image-specific settings stay local.
+runtime:
+  enabled: false
+  runtimeClassName: gvisor-x
+  warmPoolReplicas: 2
+  workspace:
+    storageClass: xsphere-lvm
+    size: 10Gi
+
+monitoring:
+  dashboards:
+    enabled: true
+    namespace: monitoring

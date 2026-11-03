@@ -81,7 +81,7 @@ server {
         auth_request /__ensure_running;
         auth_request_set $sandbox_connect_status $upstream_status;
         error_page 500 = @sandbox_auth_error;
-        proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
+        proxy_set_header X-Sandbox-Namespace {{ include "xsphere.workloadNamespace" . }};
         proxy_set_header X-Sandbox-ID $http_e2b_sandbox_id;
         proxy_set_header X-Sandbox-Port $http_e2b_sandbox_port;
         {{- include "xsphere.proxySettings" . | nindent 8 }}
@@ -99,7 +99,7 @@ server {
         auth_request /__ensure_running;
         auth_request_set $sandbox_connect_status $upstream_status;
         error_page 500 = @sandbox_auth_error;
-        proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
+        proxy_set_header X-Sandbox-Namespace {{ include "xsphere.workloadNamespace" . }};
         proxy_set_header X-Sandbox-ID $sbid;
         proxy_set_header X-Sandbox-Port $sbport;
         {{- include "xsphere.proxySettings" . | nindent 8 }}
@@ -120,7 +120,7 @@ server {
         auth_request /__ensure_running;
         auth_request_set $sandbox_connect_status $upstream_status;
         error_page 500 = @sandbox_auth_error;
-        proxy_set_header X-Sandbox-Namespace {{ .Release.Namespace }};
+        proxy_set_header X-Sandbox-Namespace {{ include "xsphere.workloadNamespace" . }};
         proxy_set_header X-Sandbox-ID $sbid;
         proxy_set_header X-Sandbox-Port $sbport;
         {{- include "xsphere.proxySettings" . | nindent 8 }}
@@ -146,6 +146,42 @@ server {
         {{- include "xsphere.proxySettings" . | nindent 8 }}
         proxy_pass {{ .Values.edge.frontend.upstream }};
     }
+}
+{{- end }}
+{{- if .Values.edge.publicDomain }}
+server {
+    listen 80;
+    server_name ~^(?<sbport>[0-9]+)-(?<sbid>[a-z0-9]+)\.{{ regexQuoteMeta .Values.edge.publicDomain }}$;
+    {{- if .Values.edge.blockedPublicPorts }}
+    if ($sbport ~ "^({{ join "|" .Values.edge.blockedPublicPorts }})$") { return 403; }
+    {{- end }}
+    set $ensure_running_id $sbid;
+    location / {
+        auth_request /__ensure_running;
+        auth_request_set $sandbox_connect_status $upstream_status;
+        error_page 500 = @sandbox_auth_error;
+        proxy_set_header X-Sandbox-Namespace {{ include "xsphere.workloadNamespace" . }};
+        proxy_set_header X-Sandbox-ID $sbid;
+        proxy_set_header X-Sandbox-Port $sbport;
+        {{- include "xsphere.proxySettings" . | nindent 8 }}
+        proxy_pass http://sandbox-router-svc.{{ .Release.Namespace }}.svc.{{ .Values.router.clusterDomain }}:8080;
+    }
+    {{- include "xsphere.ensureRunningLocation" . | nindent 4 }}
+    {{- include "xsphere.authErrorLocation" . | nindent 4 }}
+}
+{{- end }}
+{{- if .Values.edge.apiLookupHost }}
+server {
+    listen 80;
+    server_name {{ .Values.edge.apiLookupHost }};
+    location ~ ^/sandboxes/[a-z0-9]+$ {
+        limit_except GET { deny all; }
+        proxy_set_header Host sandbox-api;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
+        proxy_pass http://sandbox-api;
+    }
+    location / { return 404; }
 }
 {{- end }}
 {{- end -}}

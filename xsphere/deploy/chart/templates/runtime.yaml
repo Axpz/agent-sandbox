@@ -3,7 +3,7 @@ apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:
   name: {{ .Values.runtime.templateName }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
   labels:
     {{- include "xsphere.labels" . | nindent 4 }}
 spec:
@@ -12,8 +12,7 @@ spec:
   podTemplate:
     spec:
       automountServiceAccountToken: false
-      # The memory checkpoint path refuses any Pod that could be restarted
-      # underneath a saved image, so the runtime never restarts in place.
+      # Keep lifecycle transitions under the sandbox controller's control.
       restartPolicy: Never
       {{- include "xsphere.nodeSettings" . | nindent 6 }}
       {{- with .Values.runtime.runtimeClassName }}
@@ -86,7 +85,7 @@ apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxWarmPool
 metadata:
   name: {{ .Values.api.warmPool }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
   labels:
     {{- include "xsphere.labels" . | nindent 4 }}
 spec:

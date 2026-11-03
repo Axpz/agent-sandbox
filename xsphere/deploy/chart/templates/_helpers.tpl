@@ -4,6 +4,10 @@ app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end -}}
 
+{{- define "xsphere.workloadNamespace" -}}
+{{- default .Release.Namespace .Values.workloadNamespace -}}
+{{- end -}}
+
 {{- define "xsphere.nodeSettings" -}}
 {{- with .Values.imagePullSecrets }}
 imagePullSecrets:

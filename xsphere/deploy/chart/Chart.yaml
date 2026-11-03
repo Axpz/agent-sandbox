@@ -2,5 +2,5 @@ apiVersion: v2
 name: xsphere
 description: xsphere sandbox-api and data-plane integration (private development baseline)
 type: application
-version: 0.2.0
-appVersion: "0.2.0"
+version: 1103.1.0
+appVersion: "1103.1"

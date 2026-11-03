@@ -1,3 +1,4 @@
+{{- if .Values.router.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -8,7 +9,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: sandbox-router
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
 rules:
   - apiGroups: [""]
     resources: [pods]
@@ -18,7 +19,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: sandbox-router
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -61,7 +62,7 @@ spec:
             - --proxy-timeout=180s
             - --upstream-max-retries=3
             - --cache-enabled=true
-            - --cache-namespace={{ .Release.Namespace }}
+            - --cache-namespace={{ include "xsphere.workloadNamespace" . }}
           ports:
             - {name: proxy, containerPort: 8080}
             - {name: metrics, containerPort: 9090}
@@ -120,4 +121,5 @@ spec:
     - port: metrics
       path: /metrics
       interval: 15s
+{{- end }}
 {{- end }}

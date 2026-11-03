@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "version": "1103.1",
+  "branch": "xsphere/main",
+  "chart": {
+    "path": "xsphere/deploy/chart",
+    "version": "1103.1.0",
+    "appVersion": "1103.1"
+  },
+  "gvisor": {
+    "repository": "https://github.com/Axpz/gvisor",
+    "tag": "1103.1",
+    "commit": "8daf1a4aa63ddbc2c07bb302ab086a9ec8b8ee22",
+    "artifactTag": "1029.1",
+    "platform": "linux/amd64",
+    "artifacts": {
+      "gvisor-linux-amd64-1029.1.tar.zstd": "c791cbc1963d440c31275156eb60885f0455edb34c4921f60867a8102d954e91"
+    },
+    "runtimeClassName": "gvisor-x",
+    "artifactUrl": "https://github.com/Axpz/gvisor/releases/download/1029.1/gvisor-linux-amd64-1029.1.tar.zstd"
+  },
+  "sandboxApi": {
+    "sourceBaseCommit": "ecb1b8f1843b0c5f979216f8302207c5d30a5f79",
+    "sourcePath": "xsphere/sandbox-api",
+    "runtimeSourceChanged": false,
+    "artifactTag": "1029.1",
+    "imageIndexDigest": "sha256:3ec964e8a9fceeddbae3eee1af234960f5c5fe9beca944baa7a7a44feef1fd1d",
+    "platforms": [
+      "linux/amd64",
+      "linux/arm64"
+    ],
+    "distribution": "Existing 1029.1 OCI archive; import/retag into the selected registry.",
+    "artifactUrl": "https://github.com/Axpz/agent-sandbox/releases/download/1029.1/sandbox-api-1029.1.oci.tar",
+    "archiveSha256": "f3d20450ef5de0af074f47414e4c9b0f65c947f07f268c750f98b4743209ae3d"
+  },
+  "controller": {
+    "artifactVersion": "v0.5.4-xsphere.1",
+    "imageDigest": "sha256:de6316252051893183f7835fc429620c3e470a54d4258bcae6df183aa98df1ed",
+    "chartSha256": "6a8d4d928c67dd00547b9adfe625861db51a65f323faf2916842aeddffd0c39f",
+    "distribution": "Existing downstream controller/chart artifact; not rebuilt by this release. Repository-root controller sources are the upstream development tree, not proof of this deployed artifact."
+  },
+  "router": {
+    "chartSourceTag": "v1.0.9",
+    "chartVersion": "0.1.0",
+    "chartSha256": "e12d9c961e7edaf107d2650884d9140be1d4dd57514cac56c745d3cceb09ec20",
+    "chartModified": false,
+    "imageRevision": "afc6c6a",
+    "imageDigest": "sha256:133e1ec3cc0da3965ff699f4fc78d940bc109a0460c022e1cf595687ade1c64d"
+  },
+  "storage": {
+    "provisioner": "OpenEBS LVM CSI",
+    "chartVersion": "1.10.1",
+    "storageClass": "xsphere-lvm",
+    "workspaceSize": "10Gi"
+  },
+  "monitoring": {
+    "chart": "prometheus-community/kube-prometheus-stack",
+    "chartVersion": "89.2.2",
+    "chartSha256": "05483f2ca0b047880e39869927ed7d313a365e7cd030e8fa782a755e44514d8f",
+    "dashboardPath": "xsphere/deploy/chart/files/dashboards"
+  },
+  "workloadTemplate": {
+    "distribution": "Environment-specific image and template are selected in private values; reuse the reviewed existing template by default.",
+    "warmPoolReplicas": 2,
+    "observabilityEnabled": false
+  },
+  "scope": {
+    "applicationSourceIncluded": false,
+    "customerConfigurationIncluded": false,
+    "clusterUpgradePerformed": false
+  },
+  "edge": {
+    "sourcePath": "xsphere/deploy/chart/templates/edge.yaml",
+    "nginxVersion": "1.27.0",
+    "observedImageDigest": "sha256:7183446dbb193731a504732a9399947a37f54477a61efff97113ebd23f31ad00",
+    "configuration": "Internal SDK routing, optional public preview restrictions and private read-only lookup; environment hostnames selected in local values."
+  }
+}

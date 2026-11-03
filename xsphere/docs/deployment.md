@@ -1,6 +1,8 @@
 # Private Development Deployment
 
 [Product entry](../README.md). This is the generic chart deployment procedure.
+For separate management/workload namespaces and an upstream Router chart, use
+the [K3s profile](k3s.md).
 For the recorded 55 installation and its exact profile, start with the
 [frozen baseline](baseline.md); the dev values below are not that profile.
 
@@ -78,7 +80,7 @@ runtime:
 
 Replace both image placeholders. Match `mountPath` to the application's persistent
 data directory. With `runtime.enabled=false`, the API requires an existing pool in
-the same namespace; it does not reach across namespaces. A zero-size warm pool
+the selected `workloadNamespace` (the release namespace by default). A zero-size warm pool
 permits cold creation without maintaining idle Sandboxes.
 
 The generic template intentionally has no privileged mode, `/dev/fuse` hostPath,

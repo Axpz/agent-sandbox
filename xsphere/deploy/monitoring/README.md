@@ -1,5 +1,11 @@
 # Sandbox Monitoring
 
+当前 K3s 配置与版本见 [K3s 接入](../../docs/k3s.md) 和
+[发布清单](../../release.json)。下方 55 访问方式和历史验证只供对应环境使用。
+
+资源表包含在线/离线及热池列；保留工作卷但没有 Pod 的沙箱也会显示。
+热池列需要采集示例中的 Pod 标签白名单。
+
 ## 面板速用（55 私有测试环境）
 
 记住三步：**开隧道 → 打开面板 → 选范围**。
@@ -85,6 +91,7 @@ Then, in the values file for the target environment:
 monitoring:
   dashboards:
     enabled: true
+    namespace: monitoring
     # Grafana folder; the sidecar must be configured to honour the annotation.
     folder: xsphere
 api:
@@ -96,7 +103,8 @@ router:
 ```
 
 Then install as described in [deployment](../../docs/deployment.md). The chart
-renders one ConfigMap per JSON file into the release namespace, labelled
+renders one ConfigMap per JSON file into the selected dashboard namespace (the
+release namespace by default), labelled
 `grafana_dashboard: "1"` and annotated `grafana_folder`. A Grafana sidecar
 watching that label — kube-prometheus-stack ships one — picks the dashboards up
 without a Grafana restart.

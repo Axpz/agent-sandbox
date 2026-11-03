@@ -92,5 +92,21 @@
     "sourceRepository": "https://github.com/Axpz/gvisor",
     "sourceCommit": "7e3a4c73201e3ba06d825dc4e7e4d7887de545bd",
     "status": "build-and-unit-tested; not the previously Pod-E2E-tested release"
-  }
+  },
+  "updates": [
+    {
+      "date": "2026-11-03",
+      "release": "1103.1",
+      "source": "Reviewed K3s deployment dashboard ConfigMaps; environment addresses and credentials excluded.",
+      "sandboxApiSourceBaseCommit": "ecb1b8f1843b0c5f979216f8302207c5d30a5f79",
+      "dashboardSha256": {
+        "control-plane.json": "800ccd508cc4b15ae607880079f581f85da00ec2dad0ac734f1df32e1cf9c2d6",
+        "sandbox-details.json": "3f74d6eec1a562ca24d64cd00df747492eea3dc98733a379d183242d47d55389",
+        "sandbox-overview.json": "14aaeeca512adfc55f1546190679a1f8a227f2dbb0e961d8131f722c2cf25bdd",
+        "snapshot-warmpool.json": "f331a186d5ae296b32a3bcad163c9937689b82c2b21652255a0677acc1f5dac2"
+      },
+      "runtimeSourceRepository": "Axpz/gvisor",
+      "runtimeSourceCommit": "8daf1a4aa63ddbc2c07bb302ab086a9ec8b8ee22"
+    }
+  ]
 }

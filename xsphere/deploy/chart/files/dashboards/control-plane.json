@@ -1147,7 +1147,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (container) (container_memory_working_set_bytes{namespace=\"$ns\", container=~\"api|router|nginx\"})",
+          "expr": "sum by (container) (container_memory_working_set_bytes{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\"})",
           "legendFormat": "使用 {{container}}",
           "refId": "A"
         },
@@ -1157,7 +1157,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (container) (kube_pod_container_resource_limits{namespace=\"$ns\", container=~\"api|router|nginx\", resource=\"memory\"})",
+          "expr": "sum by (container) (kube_pod_container_resource_limits{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\", resource=\"memory\"})",
           "legendFormat": "上限 {{container}}",
           "refId": "B"
         }
@@ -1273,7 +1273,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (container) (rate(container_cpu_usage_seconds_total{namespace=\"$ns\", container=~\"api|router|nginx\"}[$__rate_interval]))",
+          "expr": "sum by (container) (rate(container_cpu_usage_seconds_total{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\"}[$__rate_interval]))",
           "legendFormat": "使用 {{container}}",
           "refId": "A"
         },
@@ -1283,7 +1283,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (container) (kube_pod_container_resource_limits{namespace=\"$ns\", container=~\"api|router|nginx\", resource=\"cpu\"})",
+          "expr": "sum by (container) (kube_pod_container_resource_limits{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\", resource=\"cpu\"})",
           "legendFormat": "上限 {{container}}",
           "refId": "B"
         }
@@ -1350,7 +1350,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (container) (kube_pod_container_status_restarts_total{namespace=\"$ns\", container=~\"api|router|nginx\"})",
+          "expr": "sum by (container) (kube_pod_container_status_restarts_total{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\"})",
           "legendFormat": "{{container}}",
           "refId": "A"
         }
@@ -1559,7 +1559,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (pod, container, reason) (kube_pod_container_status_last_terminated_reason{namespace=\"$ns\", container=~\"api|router|nginx\"} == 1) * on (pod, container) group_left() max by (pod, container) (kube_pod_container_status_last_terminated_exitcode{namespace=\"$ns\", container=~\"api|router|nginx\"})",
+          "expr": "max by (pod, container, reason) (kube_pod_container_status_last_terminated_reason{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\"} == 1) * on (pod, container) group_left() max by (pod, container) (kube_pod_container_status_last_terminated_exitcode{namespace=\"$ns\", container=~\"api|router|sandbox-router|nginx\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -2261,8 +2261,8 @@
       {
         "current": {
           "selected": false,
-          "text": "sandbox",
-          "value": "sandbox"
+          "text": "agent-sandbox-system",
+          "value": "agent-sandbox-system"
         },
         "datasource": {
           "type": "prometheus",
@@ -2271,7 +2271,7 @@
         "definition": "label_values(kube_namespace_status_phase{phase=\"Active\"}, namespace)",
         "hide": 0,
         "includeAll": false,
-        "label": "沙箱命名空间",
+        "label": "管理命名空间",
         "multi": false,
         "name": "ns",
         "options": [],

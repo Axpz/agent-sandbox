@@ -11,7 +11,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: sandbox-api
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
 rules:
   - apiGroups: [extensions.agents.x-k8s.io]
     resources: [sandboxclaims, sandboxtemplates, sandboxwarmpools]
@@ -35,7 +35,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: sandbox-api
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -78,7 +78,7 @@ spec:
             - name: NODE_ENV
               value: production
             - name: AGENTSPHERE_NAMESPACE
-              value: {{ .Release.Namespace | quote }}
+              value: {{ include "xsphere.workloadNamespace" . | quote }}
             - name: AGENTSPHERE_WARMPOOL
               value: {{ .Values.api.warmPool | quote }}
             {{- if .Values.api.checkpoint }}
@@ -160,6 +160,6 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: sandbox-checkpoint-worker
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "xsphere.workloadNamespace" . }}
 automountServiceAccountToken: false
 {{- end }}
