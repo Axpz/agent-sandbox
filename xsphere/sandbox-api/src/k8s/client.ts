@@ -151,12 +151,16 @@ export async function patchSandboxLifecycle(
 export async function patchSandboxOperatingMode(
   name: string,
   operatingMode: 'Running' | 'Suspended',
+  resourceVersion?: string,
 ): Promise<JsonObject> {
   return (await api.patchNamespacedCustomObject({
     ...SANDBOX_GVR,
     namespace: config.namespace,
     name,
     body: [
+      ...(resourceVersion
+        ? [{ op: 'test', path: '/metadata/resourceVersion', value: resourceVersion }]
+        : []),
       {
         op: 'replace',
         path: '/spec/operatingMode',
@@ -169,10 +173,14 @@ export async function patchSandboxOperatingMode(
 export async function patchClaimRestore(
   name: string,
   resourceVersion: string,
-  path: string,
+  path: string | null,
 ): Promise<void> {
   const claim = await getClaimCR(name)
   const spec = claim.spec as { additionalPodMetadata?: { annotations?: Record<string, string> } }
+  const annotations = { ...spec.additionalPodMetadata?.annotations }
+  const key = 'dev.gvisor.internal.restore.host-image-path'
+  if (path === null) delete annotations[key]
+  else annotations[key] = path
   await api.patchNamespacedCustomObject({
     ...CLAIM_GVR,
     namespace: config.namespace,
@@ -184,10 +192,7 @@ export async function patchClaimRestore(
         path: '/spec/additionalPodMetadata',
         value: {
           ...spec.additionalPodMetadata,
-          annotations: {
-            ...spec.additionalPodMetadata?.annotations,
-            'dev.gvisor.internal.restore.host-image-path': path,
-          },
+          annotations,
         },
       },
     ],

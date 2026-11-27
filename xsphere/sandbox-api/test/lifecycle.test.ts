@@ -32,6 +32,8 @@ let completeTransition = true
 const configMaps = new Map<string, V1ConfigMap>()
 const jobs = new Map<string, V1Job>()
 const pods = new Map<string, V1Pod>()
+let pvcUID = crypto.randomUUID()
+let failColdStart = false
 let failWorker: string | null = null
 let failSuspension = false
 let workerPending = false
@@ -71,6 +73,7 @@ function bind(claim: Claim, id: string): void {
       spec: {
         runtimeClassName: 'gvisor',
         nodeSelector: { 'kubernetes.io/hostname': 'node-a' },
+        volumes: [{ name: 'workspace', persistentVolumeClaim: { claimName: `work-${id}` } }],
         restartPolicy: 'Never',
         containers: [{ name: 'runtime', image: `example@sha256:${'a'.repeat(64)}` }],
       },
@@ -144,7 +147,16 @@ const patchMode = mock(async (name: string, operatingMode: string) => {
     : []
   if (sandbox.spec.podTemplate) {
     if (operatingMode === 'Suspended') pods.delete(name)
-    else if (completeTransition && !pods.has(name)) createPod(sandbox)
+    else if (completeTransition && !pods.has(name)) {
+      createPod(sandbox)
+      if (failColdStart) {
+        const pod = read(pods, name)
+        const container = pod.status?.containerStatuses?.[0]
+        if (!container) throw new Error('invalid test Pod fixture')
+        container.state = { terminated: { exitCode: 128, reason: 'StartError' } }
+        pod.status = { phase: 'Failed', containerStatuses: [container] }
+      }
+    }
   }
 })
 
@@ -160,12 +172,14 @@ mock.module('../src/k8s/client', () => ({
   patchClaimShutdownTime: patchClaimTime,
   patchSandboxOperatingMode: patchMode,
   isNotFound: (error: { code?: number }) => error.code === 404,
-  patchClaimRestore: async (name: string, _rv: string, path: string) => {
+  patchClaimRestore: async (name: string, _rv: string, path: string | null) => {
     const claim = read(claims, name)
-    claim.spec.additionalPodMetadata = { annotations: { [RESTORE_ANNOTATION]: path } }
+    claim.spec.additionalPodMetadata = { annotations: path ? { [RESTORE_ANNOTATION]: path } : {} }
     const sandbox = read(sandboxes, claim.status.sandbox.name)
     if (sandbox.spec.podTemplate)
-      sandbox.spec.podTemplate.metadata = { annotations: { [RESTORE_ANNOTATION]: path } }
+      sandbox.spec.podTemplate.metadata = {
+        annotations: path ? { [RESTORE_ANNOTATION]: path } : {},
+      }
   },
   coreApi: {
     createNamespacedConfigMap: async ({ body }: { body: V1ConfigMap }) => {
@@ -181,6 +195,10 @@ mock.module('../src/k8s/client', () => ({
       return structuredClone(body)
     },
     listNamespacedConfigMap: async () => ({ items: structuredClone([...configMaps.values()]) }),
+    readNamespacedPersistentVolumeClaim: async () => ({
+      metadata: { uid: pvcUID },
+      status: { phase: 'Bound' },
+    }),
     readNamespacedPod: async ({ name }: { name: string }) => structuredClone(read(pods, name)),
     listNamespacedPod: async ({ labelSelector }: { labelSelector: string }) => {
       if (workerPending) return { items: [] }
@@ -288,6 +306,7 @@ beforeEach(() => {
   pods.clear()
   workerActions.length = 0
   failWorker = null
+  failColdStart = false
   failSuspension = false
   workerPending = false
   bind(
@@ -378,6 +397,65 @@ async function createMemorySandbox(extra: JsonObject = {}): Promise<string> {
 }
 
 describe('memory lifecycle through the existing HTTP API', () => {
+  test('SDK timeout refuses a failed Pod and resume cold-starts the same workspace once', async () => {
+    const id = await createMemorySandbox()
+    await request(`/sandboxes/${id}/pause`, 'POST')
+    await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })
+    const failed = read(pods, id)
+    expect(failed.metadata?.annotations?.[RESTORE_ANNOTATION]).toBeDefined()
+    failed.status = { phase: 'Failed' }
+    patchMode.mockClear()
+    expect((await request(`/sandboxes/${id}/timeout`, 'POST', { timeout: 60 })).status).toBe(409)
+    expect(patchMode).not.toHaveBeenCalled()
+    const results = await Promise.all(
+      ['resume', 'connect'].map((action) =>
+        request(`/sandboxes/${id}/${action}`, 'POST', { timeout: 60 }),
+      ),
+    )
+    expect(results.every((result) => [200, 201, 409].includes(result.status))).toBe(true)
+    expect(results.some((result) => result.status === 201)).toBe(true)
+    expect(read(pods, id).metadata?.uid).not.toEqual(failed.metadata?.uid)
+    expect(read(pods, id).metadata?.annotations?.[RESTORE_ANNOTATION]).toBeUndefined()
+    expect(read(pods, id).spec?.volumes).toEqual(failed.spec?.volumes)
+    expect(patchMode.mock.calls.filter((call) => call[1] === 'Running')).toHaveLength(1)
+    expect(deleteClaim).not.toHaveBeenCalled()
+    expect(workerActions).toEqual(['save'])
+    expect((await request(`/sandboxes/${id}/timeout`, 'POST', { timeout: 60 })).status).toBe(204)
+  })
+
+  test('stops after one retry for a runtime that repeatedly fails before starting', async () => {
+    const id = await createMemorySandbox()
+    read(pods, id).status = { phase: 'Failed' }
+    failColdStart = true
+    expect((await request(`/sandboxes/${id}/connect`, 'POST', { timeout: 60 })).status).toBe(500)
+    expect(patchMode.mock.calls.filter((call) => call[1] === 'Running')).toHaveLength(2)
+    expect(deleteClaim).not.toHaveBeenCalled()
+    failColdStart = false
+    expect((await request(`/sandboxes/${id}/resume`, 'POST', { timeout: 60 })).status).toBe(201)
+  })
+
+  test('a resumed recovery refuses a different volume UID and still permits explicit deletion', async () => {
+    const id = await createMemorySandbox()
+    const pod = read(pods, id)
+    pod.status = { phase: 'Failed' }
+    const cm = [...configMaps.values()][0]
+    if (!cm.data || !pod.metadata?.uid) throw new Error('invalid recovery fixture')
+    const record = JSON.parse(cm.data.record)
+    record.operation = {
+      action: 'recover',
+      stage: 'release',
+      failedPodUID: pod.metadata.uid,
+      volumes: { [`work-${id}`]: pvcUID },
+      resumeTimeoutSeconds: 60,
+    }
+    cm.data.record = JSON.stringify(record)
+    pvcUID = crypto.randomUUID()
+    expect((await request(`/sandboxes/${id}/connect`, 'POST', { timeout: 60 })).status).toBe(500)
+    expect(patchMode).not.toHaveBeenCalled()
+    expect(deleteClaim).not.toHaveBeenCalled()
+    expect((await request(`/sandboxes/${id}`, 'DELETE')).status).toBe(204)
+  })
+
   test('pause and resume accept Always and an already restarted running container', async () => {
     const id = await createMemorySandbox()
     const spec = read(sandboxes, id).spec.podTemplate?.spec

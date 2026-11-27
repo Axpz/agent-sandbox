@@ -100,6 +100,16 @@ restores run no Job. `autoPause` uses the same
 path, rather than controller expiry deleting a Pod before saving. No new CRD, daemon,
 Codesphere change or Router change is part of this step.
 
+A memory-managed workspace recorded as running can recover on demand when its owned
+Pod has reached `Failed`. A timeout update returns a conflict so existing SDKs take
+their resume path. Connect or resume replaces the failed Pod through the controller,
+removes its previous restore instruction, checks the original bound PVC UIDs and
+initializes envd on the ready replacement. This is a cold start: processes and
+manually launched preview servers need their usual startup commands. The operation
+is journaled across API restarts. A runtime `StartError` with exit code 128 gets
+one extra attempt. Deploy the workload Role with PVC `get` permission alongside
+the API. Finish any in-flight cold recovery before rolling the API back.
+
 Private journal version 2 rejects the earlier experimental version 1 workflow,
 which left the runtime externally frozen. Do not upgrade an old experimental API
 with unfinished operations into this version and expect automatic migration.
