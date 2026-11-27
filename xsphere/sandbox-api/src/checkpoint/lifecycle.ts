@@ -11,6 +11,7 @@ import {
   patchClaimRestore,
   patchSandboxOperatingMode,
 } from '../k8s/client'
+import { envVarsOf, initEnvd } from '../k8s/envd'
 import { logger } from '../logger'
 import { cleanJobs, pollWorker, WorkerFailed } from './jobs'
 import {
@@ -188,6 +189,111 @@ function podReady(pod: V1Pod): boolean {
   )
 }
 
+async function boundVolumeUID(name: string): Promise<string> {
+  const pvc = await coreApi.readNamespacedPersistentVolumeClaim({
+    namespace: config.namespace,
+    name,
+  })
+  if (!pvc.metadata?.uid || pvc.metadata.deletionTimestamp || pvc.status?.phase !== 'Bound')
+    throw new Error('original workspace volume is unavailable')
+  return pvc.metadata.uid
+}
+
+async function advanceRecovery(
+  journal: Journal,
+  bound: { claim: JsonObject; sandbox: JsonObject },
+  name: string,
+  op: Extract<MemoryRecord['operation'], { action: 'recover' }>,
+): Promise<void> {
+  const record = journal.record
+  for (const [volume, uid] of Object.entries(op.volumes)) {
+    if ((await boundVolumeUID(volume)) !== uid)
+      throw new Error('original workspace volume is unavailable')
+  }
+  const pod = await podFor(record)
+  if (op.stage === 'release') {
+    if (pod && (pod.metadata?.uid !== op.failedPodUID || pod.status?.phase !== 'Failed'))
+      throw new Error('failed Pod was replaced before recovery')
+    if ((bound.sandbox.spec as { operatingMode: string }).operatingMode !== 'Suspended') {
+      await patchSandboxOperatingMode(
+        name,
+        'Suspended',
+        (bound.sandbox.metadata as Metadata).resourceVersion,
+      )
+      return
+    }
+    if (pod) return
+    const claimMeta = (
+      bound.claim.spec as { additionalPodMetadata?: { annotations?: Record<string, string> } }
+    ).additionalPodMetadata
+    if (claimMeta?.annotations?.[RESTORE_ANNOTATION] !== undefined) {
+      await patchClaimRestore(
+        record.claimName,
+        (bound.claim.metadata as Metadata).resourceVersion,
+        null,
+      )
+      return
+    }
+    const template = (
+      bound.sandbox.spec as {
+        podTemplate: { metadata?: { annotations?: Record<string, string> } }
+      }
+    ).podTemplate
+    if (template.metadata?.annotations?.[RESTORE_ANNOTATION] !== undefined) return
+    op.stage = 'cold-start'
+    await persist(journal)
+    return
+  }
+  if ((bound.sandbox.spec as { operatingMode: string }).operatingMode !== 'Running') {
+    await patchSandboxOperatingMode(
+      name,
+      'Running',
+      (bound.sandbox.metadata as Metadata).resourceVersion,
+    )
+    return
+  }
+  if (!pod) return
+  if (pod.status?.phase === 'Failed' || pod.status?.phase === 'Succeeded') {
+    // The runtime may fail before starting the workload. Retry that case once;
+    // an application that ran and exited must not be replayed automatically.
+    const status = pod.status.containerStatuses
+    const exit = status?.[0]?.state?.terminated
+    if (
+      !op.retriedStartError &&
+      pod.status.phase === 'Failed' &&
+      pod.metadata?.uid &&
+      status?.length === 1 &&
+      exit?.reason === 'StartError' &&
+      exit.exitCode === 128
+    ) {
+      op.failedPodUID = pod.metadata.uid
+      op.stage = 'release'
+      op.retriedStartError = true
+      await persist(journal)
+      return
+    }
+    delete record.operation
+    record.error = 'replacement Pod terminated; retry workspace startup'
+    await persist(journal)
+    throw new Error(record.error)
+  }
+  if (!podReady(pod)) return
+  if (
+    pod.metadata?.uid === op.failedPodUID ||
+    pod.metadata?.annotations?.[RESTORE_ANNOTATION] !== undefined ||
+    Object.keys(op.volumes).some(
+      (volume) => !pod.spec?.volumes?.some((v) => v.persistentVolumeClaim?.claimName === volume),
+    )
+  )
+    throw new Error('replacement Pod does not match the workspace being recovered')
+  await initEnvd(name, envVarsOf(bound.claim))
+  record.deadline = new Date(Date.now() + op.resumeTimeoutSeconds * 1000).toISOString()
+  delete record.operation
+  delete record.error
+  await persist(journal)
+  logger.info({ sandboxID: name }, 'failed workspace Pod recovered')
+}
+
 // Exactly one API replica owns reconciliation. Each step persists before its next
 // side effect; deterministic Jobs survive HTTP disconnects and API restarts.
 async function advance(journal: Journal): Promise<void> {
@@ -199,6 +305,7 @@ async function advance(journal: Journal): Promise<void> {
   if (!op) return
   const name = record.sandboxName
   if (!name) throw new Error('checkpoint journal is not bound')
+  if (op.action === 'recover') return advanceRecovery(journal, bound, name, op)
   const poll = (request: Parameters<typeof pollWorker>[3]) =>
     pollWorker(rt, journal.cm, op.id, request)
   try {
@@ -328,7 +435,7 @@ async function advance(journal: Journal): Promise<void> {
       await persist(journal)
     }
     // Keeping the operation here would make the sandbox permanently
-    // un-resumable and un-deletable: transition() and memoryCanDelete() both
+    // un-resumable and un-deletable: transition() and deleteMemoryClaim() both
     // refuse while one is in flight. Every throw reaching this leaves the
     // Sandbox suspended with no Pod, so release it and keep the reason.
     if (error instanceof RestoreAbandoned) {
@@ -342,29 +449,50 @@ async function advance(journal: Journal): Promise<void> {
 
 export async function memoryDetail(claimName: string) {
   const { record } = await readJournal(claimName)
-  return { endAt: record.deadline, state: record.state, busy: Boolean(record.operation) }
+  return {
+    endAt: record.deadline,
+    state: record.state,
+    busy: Boolean(record.operation),
+  }
 }
 
-export async function connect(claimName: string, timeoutSeconds: number) {
+export async function connect(claimName: string, timeoutSeconds: number, explicitResume = false) {
   const deadline = Date.now() + runtime().timeoutSeconds * 3 * 1000 + config.createTimeoutMs
   let wasPaused = false
+  let recovering = false
   while (true) {
     try {
-      const detail = await memoryDetail(claimName)
-      wasPaused ||= detail.state === 'paused'
-      if (!detail.busy && detail.state === 'paused') {
+      const { record } = await readJournal(claimName)
+      wasPaused ||= record.state === 'paused'
+      if (record.operation?.action === 'recover') {
+        recovering = true
+        await transition(claimName, 'recover', timeoutSeconds)
+        return 'recovered' as const
+      }
+      if (!record.operation && record.state === 'paused') {
         await transition(claimName, 'resume', timeoutSeconds)
         return 'resumed' as const
       }
-      if (!detail.busy) {
-        await memoryTimeout(claimName, timeoutSeconds, true)
-        return wasPaused ? ('resumed' as const) : ('running' as const)
+      if (!record.operation) {
+        if (recovering && record.error) throw new Error(record.error)
+        const pod = await podFor(record)
+        if (pod?.status?.phase === 'Failed') {
+          recovering = true
+          await transition(claimName, 'recover', timeoutSeconds)
+          return 'recovered' as const
+        }
+        if (pod && podReady(pod)) {
+          if (!explicitResume) await memoryTimeout(claimName, timeoutSeconds, true)
+          if (recovering) return 'recovered' as const
+          if (wasPaused) return 'resumed' as const
+          return 'running' as const
+        }
       }
     } catch (error) {
       if (!(error instanceof MemoryConflict)) throw error
     }
     if (Date.now() > deadline)
-      throw new MemoryConflict('memory transition did not settle before connect timed out')
+      throw new Error('sandbox did not become ready before connect timed out')
     await sleep(config.createPollMs)
   }
 }
@@ -389,6 +517,14 @@ export async function memoryTimeout(
     const journal = await readJournal(claimName)
     if (journal.record.operation)
       throw new MemoryConflict('memory transition in progress; retry after it completes')
+    const pod = await podFor(journal.record)
+    if (
+      journal.record.state !== 'running' ||
+      !pod ||
+      pod.status?.phase === 'Failed' ||
+      !podReady(pod)
+    )
+      throw new MemoryConflict('sandbox runtime is not ready')
     const deadline = new Date(Date.now() + Math.max(0, seconds) * 1000).toISOString()
     if (!extendOnly || deadline > journal.record.deadline) {
       journal.record.deadline = deadline
@@ -410,7 +546,7 @@ async function exclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
 
 export async function transition(
   claimName: string,
-  action: 'pause' | 'resume',
+  action: 'pause' | 'resume' | 'recover',
   resumeTimeoutSeconds?: number,
   // The reconciler decides from a listed snapshot; recheck under exclusion so a
   // deadline extended in between does not pause a sandbox that is in use.
@@ -419,12 +555,39 @@ export async function transition(
   runtime()
   await exclusive(claimName, async () => {
     const journal = await readJournal(claimName)
-    if (!(await bind(journal))) throw new MemoryConflict('Sandbox is not bound yet')
+    const bound = await bind(journal)
+    if (!bound) throw new MemoryConflict('Sandbox is not bound yet')
     const record = journal.record
     if (record.operation && record.operation.action !== action)
       throw new MemoryConflict('another memory transition is in progress')
     if (record.operation && record.error) throw new Error(record.error)
-    if (!record.operation) {
+    if (!record.operation && action === 'recover') {
+      const pod = await podFor(record)
+      if (
+        record.state !== 'running' ||
+        (bound.sandbox.spec as { operatingMode?: string }).operatingMode !== 'Running' ||
+        !pod?.metadata?.uid ||
+        pod.metadata.deletionTimestamp ||
+        pod.status?.phase !== 'Failed'
+      )
+        throw new MemoryConflict('sandbox is no longer eligible for cold recovery')
+      const volumes: Record<string, string> = {}
+      for (const volume of pod.spec?.volumes ?? []) {
+        const name = volume.persistentVolumeClaim?.claimName
+        if (!name) continue
+        volumes[name] = await boundVolumeUID(name)
+      }
+      if (!Object.keys(volumes).length) throw new Error('failed workspace has no persistent volume')
+      record.operation = {
+        action,
+        stage: 'release',
+        failedPodUID: pod.metadata.uid,
+        volumes,
+        resumeTimeoutSeconds: Math.max(0, resumeTimeoutSeconds ?? 7200),
+      }
+      delete record.error
+      await persist(journal)
+    } else if (!record.operation && action !== 'recover') {
       if ((action === 'pause') === (record.state === 'paused')) return
       if (onlyIfExpired && Date.parse(record.deadline) > Date.now()) return
       await cleanJobs(journal.cm)
@@ -459,10 +622,15 @@ export async function transition(
   })
 }
 
-export async function memoryCanDelete(claimName: string): Promise<void> {
-  if (active.has(claimName) || (await readJournal(claimName)).record.operation) {
-    throw new MemoryConflict('memory transition in progress; retry deletion after it completes')
-  }
+export async function deleteMemoryClaim(claimName: string): Promise<void> {
+  await exclusive(claimName, async () => {
+    const { record } = await readJournal(claimName)
+    // A stalled cold start has no out-of-process save Job. Explicit deletion
+    // can reclaim the workspace once no API request is advancing its journal.
+    if (record.operation && record.operation.action !== 'recover')
+      throw new MemoryConflict('memory transition in progress; retry deletion after it completes')
+    await deleteClaimCR(claimName)
+  })
 }
 
 // The interval only bounds how late an expiry is noticed; every transition runs

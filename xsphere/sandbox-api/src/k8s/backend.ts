@@ -15,7 +15,7 @@ import {
   patchSandboxLifecycle,
   patchSandboxOperatingMode,
 } from './client'
-import { initEnvd } from './envd'
+import { ANNO_ENV, envVarsOf, initEnvd } from './envd'
 
 const MANAGED_BY = 'sandbox-api'
 // templateID + user metadata have no home on the Sandbox CR, so we stash them
@@ -24,7 +24,6 @@ const ANNO_TEMPLATE = 'sandbox-api/template-id'
 const ANNO_META_PREFIX = 'sandbox-api.metadata/'
 // With envd /init, create-time envVars are not in the Pod spec, yet every
 // resume starts a new envd that must receive them again.
-const ANNO_ENV = 'sandbox-api/env-vars'
 
 export interface CreateInput {
   templateID: string
@@ -151,11 +150,6 @@ async function getBoundSandbox(id: string): Promise<BoundSandbox | null> {
     if (isNotFound(e)) return null
     throw e
   }
-}
-
-function envVarsOf(claim: JsonObject): Record<string, string> {
-  const raw = (claim.metadata as { annotations?: Record<string, string> }).annotations?.[ANNO_ENV]
-  return raw ? (JSON.parse(raw) as Record<string, string>) : {}
 }
 
 function memoryManaged(bound: BoundSandbox): boolean {
@@ -498,7 +492,7 @@ export async function connectSandbox(id: string, timeoutSeconds: number): Promis
     const status = await connect(bound.claimName, timeoutSeconds)
     if (status === 'resumed') await initEnvd(id, envVarsOf(bound.claim))
     return {
-      status,
+      status: status === 'recovered' ? 'resumed' : status,
       value: sandboxResultFromBound(id, bound),
     }
   }
@@ -522,11 +516,10 @@ export async function connectSandbox(id: string, timeoutSeconds: number): Promis
 export async function killSandbox(id: string): Promise<boolean> {
   const bound = await getBoundSandbox(id)
   if (!bound) return false
-  if (memoryManaged(bound))
-    await (await import('../checkpoint/lifecycle')).memoryCanDelete(bound.claimName)
-
   try {
-    await deleteClaimCR(bound.claimName)
+    if (memoryManaged(bound))
+      await (await import('../checkpoint/lifecycle')).deleteMemoryClaim(bound.claimName)
+    else await deleteClaimCR(bound.claimName)
   } catch (e) {
     if (isNotFound(e)) return false
     throw e
@@ -563,10 +556,9 @@ export async function resumeSandbox(
   if (!bound) return { status: 'not-found' }
   if (memoryManaged(bound)) {
     const memory = await import('../checkpoint/lifecycle')
-    const detail = await memory.memoryDetail(bound.claimName)
-    if (detail.state === 'running' && !detail.busy) return { status: 'conflict' }
-    await memory.transition(bound.claimName, 'resume', timeoutSeconds)
-    await initEnvd(id, envVarsOf(bound.claim))
+    const status = await memory.connect(bound.claimName, timeoutSeconds, true)
+    if (status === 'running') return { status: 'conflict' }
+    if (status === 'resumed') await initEnvd(id, envVarsOf(bound.claim))
     return { status: 'ok', value: sandboxResultFromBound(id, bound) }
   }
   if (sandboxState(bound.sandbox) === 'running') return { status: 'conflict' }

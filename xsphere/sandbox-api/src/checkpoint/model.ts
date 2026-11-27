@@ -82,14 +82,24 @@ export const recordSchema = z.object({
   state: z.enum(['running', 'paused']),
   checkpoint: checkpointSchema.optional(),
   operation: z
-    .object({
-      id,
-      action: z.enum(['pause', 'resume']),
-      stage: z.enum(['save', 'suspend', 'verify', 'start', 'abandon']),
-      source: sourceSchema,
-      startedAt: z.string().datetime(),
-      resumeTimeoutSeconds: z.number().nonnegative().optional(),
-    })
+    .union([
+      z.object({
+        id,
+        action: z.enum(['pause', 'resume']),
+        stage: z.enum(['save', 'suspend', 'verify', 'start', 'abandon']),
+        source: sourceSchema,
+        startedAt: z.string().datetime(),
+        resumeTimeoutSeconds: z.number().nonnegative().optional(),
+      }),
+      z.object({
+        action: z.literal('recover'),
+        stage: z.enum(['release', 'cold-start']),
+        failedPodUID: id,
+        volumes: z.record(z.string(), id),
+        retriedStartError: z.boolean().optional(),
+        resumeTimeoutSeconds: z.number().nonnegative(),
+      }),
+    ])
     .optional(),
   error: z.string().optional(),
 })

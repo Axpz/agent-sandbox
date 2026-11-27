@@ -1,6 +1,12 @@
 import { config } from '../config'
 import { logger } from '../logger'
-import { coreApi } from './client'
+import { coreApi, type JsonObject } from './client'
+
+export const ANNO_ENV = 'sandbox-api/env-vars'
+export function envVarsOf(claim: JsonObject): Record<string, string> {
+  const raw = (claim.metadata as { annotations?: Record<string, string> }).annotations?.[ANNO_ENV]
+  return raw ? (JSON.parse(raw) as Record<string, string>) : {}
+}
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
